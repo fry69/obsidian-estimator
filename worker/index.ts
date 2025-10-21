@@ -68,7 +68,7 @@ export default {
     let allOpenPlugins: GitHubPr[] = [];
     let page = 1;
     while (true) {
-      const response = await octokit.search.issues({
+      const response = await octokit.request("GET /search/issues", {
         q: `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`,
         per_page,
         page,
@@ -84,7 +84,7 @@ export default {
     let allOpenThemes: GitHubPr[] = [];
     page = 1;
     while (true) {
-      const response = await octokit.search.issues({
+      const response = await octokit.request("GET /search/issues", {
         q: `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`,
         per_page,
         page,
@@ -124,7 +124,7 @@ export default {
     let allMergedPrs: GitHubPr[] = [];
     page = 1;
     while (true) {
-      const response = await octokit.search.issues({
+      const response = await octokit.request("GET /search/issues", {
         q: `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`,
         per_page,
         page,

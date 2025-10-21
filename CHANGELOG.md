@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- Updated Octokit search syntax in `worker/index.ts`.
+- Corrected Octokit search syntax in `worker/index.ts` from `octokit.search.issues` to `octokit.rest.search.issues`.
 - Refactored `src/App.tsx` into smaller components and extracted calculation logic.
 - Added `src/lib/calculations.ts` for wait time and chart data logic.
 - Added `src/types.ts` for shared type definitions.
