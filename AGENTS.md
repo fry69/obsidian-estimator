@@ -565,3 +565,10 @@ A few notes:
 - The data should get stored in Cloudflare D1 -> https://developers.cloudflare.com/d1/get-started/
 - Feel free to use modern libraries state helpers like TanStack Query -> https://tanstack.com/query/latest/docs/framework/react/overview
 - And Zustand -> https://zustand.docs.pmnd.rs/getting-started/introduction
+
+---
+
+Changelog:
+
+Please create a "Keep a Changelog" style `CHANGELOG.md` file (details see here -> https://keepachangelog.com/en/1.1.0/)
+Add relevant, major steps to this changelog, but in typical extreme terse form, one item per line starting with a dash, no more than a few words, assume context is obvious for every step, no explanations.
