@@ -570,5 +570,11 @@ A few notes:
 
 Changelog:
 
-Please create a "Keep a Changelog" style `CHANGELOG.md` file (details see here -> https://keepachangelog.com/en/1.1.0/)
+Please keep a "Keep a Changelog" style `CHANGELOG.md` file (details see here -> https://keepachangelog.com/en/1.1.0/)
 Add relevant, major steps to this changelog, but in typical extreme terse form, one item per line starting with a dash, no more than a few words, assume context is obvious for every step, no explanations.
+
+---
+
+Implementation file:
+
+Please update the `IMPLEMENTATION_PLAN.md` file as you continue workin on this project. Mark completed steps. Update the plan as needed. Use markdown checkboxes to indicate progress.
