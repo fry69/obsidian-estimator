@@ -29,14 +29,16 @@ export const calculateWaitTime = (
   });
 
   const prsPerWeek = recentMerged.length / VELOCITY_WEEKS;
-  const stats = calculateStats(recentMerged);
+
+  // Use last 50 merged PRs for moving average
+  const last50Merged = recentMerged.slice(-50);
+  const stats = calculateStats(last50Merged);
 
   let estimatedDays: string | number = '∞';
   let waitRange: string = '';
 
   if (prsPerWeek > 0 && !isNaN(stats.mean)) {
-    const readyPrs = queue.filter(pr => pr.type === type);
-    const baseEstimate = (readyPrs.length / prsPerWeek) * 7;
+    const baseEstimate = stats.mean;
     const lowerBound = Math.round(baseEstimate - stats.stdDev);
     const upperBound = Math.round(baseEstimate + stats.stdDev);
     estimatedDays = Math.round(baseEstimate);

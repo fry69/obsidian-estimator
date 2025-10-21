@@ -18,6 +18,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ title, value, subtitle, range, color 
       {isHighVariance && (
         <p className="text-xs text-orange-500 mt-1">Estimates may be less reliable due to high variance.</p>
       )}
+      {title.includes('Plugin Wait') && <p className="text-xs text-slate-400 mt-1">This is an estimate for new submissions and may be high due to the large queue size.</p>}
       <p className="text-sm text-slate-400 mt-1">{title.includes('Wait') ? 'Based on recent review velocity' : (title.includes('Queue') ? `"${title.split(' ')[0].toLowerCase()}" & "Ready for review"` : 'PRs "Ready for review"')}</p>
     </div>
   );

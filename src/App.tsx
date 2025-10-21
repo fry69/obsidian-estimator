@@ -30,7 +30,7 @@ function App() {
   const [chartFilter, setChartFilter] = useState<'all' | 'plugin' | 'theme'>('all');
   const [queueFilter, setQueueFilter] = useState<'all' | 'plugin' | 'theme'>('all');
 
-  const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError } = useQuery<PullRequest[]>({
+  const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError, refetch: refetchOpenPrs } = useQuery<PullRequest[]>({
     queryKey: ['openPrs'],
     queryFn: async () => {
       const response = await fetch('/api/queue');
@@ -41,7 +41,7 @@ function App() {
     },
   });
 
-  const { data: mergedPrs, isLoading: isLoadingMergedPrs, error: mergedPrsError } = useQuery<MergedPullRequest[]>({
+  const { data: mergedPrs, isLoading: isLoadingMergedPrs, error: mergedPrsError, refetch: refetchMergedPrs } = useQuery<MergedPullRequest[]>({
     queryKey: ['mergedPrs'],
     queryFn: async () => {
       const response = await fetch('/api/history');
@@ -78,6 +78,15 @@ function App() {
       <header className="text-center mb-10">
         <h1 className="text-4xl font-bold text-slate-900">Obsidian Release PR Queue</h1>
         <p className="mt-2 text-lg text-slate-600">Dashboard for community plugin & theme submissions.</p>
+        <button
+          className="mt-4 px-4 py-2 bg-sky-600 text-white rounded-md shadow"
+          onClick={() => {
+            refetchOpenPrs();
+            refetchMergedPrs();
+          }}
+        >
+          Refetch Data
+        </button>
       </header>
 
       <main>
