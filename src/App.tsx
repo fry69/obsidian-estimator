@@ -116,8 +116,8 @@ function App() {
 
   // Chart data processing
   const weeklyData: { [key: string]: { plugins: number; themes: number } } = {};
-  const now = new Date();
-  const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
+  // const now = new Date();
+  // const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
 
   (mergedPrs || []).forEach(pr => {
     const mergedDate = new Date(pr.mergedAt);
