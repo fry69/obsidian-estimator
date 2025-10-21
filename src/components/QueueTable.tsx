@@ -10,9 +10,51 @@ interface QueueTableProps {
 type SortColumn = 'id' | 'type' | 'title' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
+const cleanTitle = (title: string) => {
+  if (title.startsWith('Add plugin: ')) {
+    return title.replace('Add plugin: ', '');
+  }
+  if (title.startsWith('Add theme: ')) {
+    return title.replace('Add theme: ', '');
+  }
+  return title;
+};
+
+const formatTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  let interval = seconds / 31536000; // years
+  if (interval > 1) {
+    return Math.floor(interval) + 'y';
+  }
+  interval = seconds / 2592000; // months
+  if (interval > 1) {
+    return Math.floor(interval) + 'mo';
+  }
+  interval = seconds / 604800; // weeks
+  if (interval > 1) {
+    return Math.floor(interval) + 'w';
+  }
+  interval = seconds / 86400; // days
+  if (interval > 1) {
+    return Math.floor(interval) + 'd';
+  }
+  interval = seconds / 3600; // hours
+  if (interval > 1) {
+    return Math.floor(interval) + 'h';
+  }
+  interval = seconds / 60; // minutes
+  if (interval > 1) {
+    return Math.floor(interval) + 'm';
+  }
+  return Math.floor(seconds) + 's';
+};
+
 const QueueTable: React.FC<QueueTableProps> = ({ readyForReviewPrs, filterType, setFilterType }) => {
-  const [sortColumn, setSortColumn] = useState<SortColumn>('createdAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('id');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -36,7 +78,7 @@ const QueueTable: React.FC<QueueTableProps> = ({ readyForReviewPrs, filterType, 
       } else if (sortColumn === 'type') {
         compareValue = a.type.localeCompare(b.type);
       } else if (sortColumn === 'title') {
-        compareValue = a.title.localeCompare(b.title);
+        compareValue = cleanTitle(a.title).localeCompare(cleanTitle(b.title));
       } else if (sortColumn === 'createdAt') {
         compareValue = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       }
@@ -104,8 +146,8 @@ const QueueTable: React.FC<QueueTableProps> = ({ readyForReviewPrs, filterType, 
                       {pr.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 truncate" style={{ maxWidth: '300px' }}>{pr.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(pr.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 truncate" style={{ maxWidth: '300px' }}>{cleanTitle(pr.title)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTimeAgo(pr.createdAt)}</td>
                 </tr>
               ))
             )}
