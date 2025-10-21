@@ -7,7 +7,7 @@ This document outlines the development plan for the Obsidian Release Queue Analy
 -   **Backend & Frontend Serving:** Cloudflare Workers
 -   **Database:** Cloudflare D1
 -   **Scheduling:** Cloudflare Cron Triggers
--   **Frontend Framework:** Preact
+-   **Frontend Framework:** React (with Vite)
 -   **State Management:** TanStack Query / Zustand (as needed)
 -   **Styling:** Tailwind CSS
 
@@ -19,30 +19,27 @@ The project will be developed in four phases.
 
 The goal is to get a basic, live snapshot of the queue running on Cloudflare infrastructure.
 
--   **[ ] Setup Cloudflare Worker Environment:**
-    -   [ ] Initialize a new Cloudflare Worker in the current directory using `wrangler`:
-        ```bash
-        npm create cloudflare@latest . --type=hello-world --no-deploy
-        ```
-    -   [ ] Note: The configuration file will be `wrangler.json`.
-    -   [ ] Set up a build process for a Preact frontend (e.g., using Vite or a similar bundler) to output static assets to a `dist` directory.
-    -   [ ] Configure Tailwind CSS for the Preact application.
+-   **[X] Setup Cloudflare Worker with React/Vite Environment:**
+    -   [X] A Cloudflare Worker project with a React/Vite frontend has been initialized.
+    -   [X] The configuration file is `wrangler.jsonc`.
+    -   [X] The Vite build process is configured to output static assets for the worker.
+    -   [ ] Configure Tailwind CSS for the React application.
 -   **[ ] Setup Cloudflare D1 Database:**
     -   [ ] Create a new D1 database: `wrangler d1 create obsidian-queue`.
-    -   [ ] Add the D1 binding to the `wrangler.json` file.
+    -   [ ] Add the D1 binding to the `wrangler.jsonc` file.
     -   [ ] Define and execute the initial SQL schema to create tables for `open_prs` and `merged_prs`.
 -   **[ ] Create Data Ingestion Logic (Cron Triggered):**
-    -   [ ] In `wrangler.json`, configure a cron trigger to run the worker on a schedule (e.g., `cron = "0 * * * *"` for hourly).
+    -   [ ] In `wrangler.jsonc`, configure a cron trigger to run the worker on a schedule (e.g., `cron = "0 * * * *"` for hourly).
     -   [ ] Add a GitHub Personal Access Token as a secret: `wrangler secret put GITHUB_TOKEN`.
     -   [ ] In the worker's `fetch` handler, add logic to detect if the request is from a cron trigger.
     -   [ ] Implement the data fetching script to:
-        -   [ ] Fetch *open* PRs with the `"Ready for review"` label using `@octokit/rest`.
+        -   [ ] Fetch *open* PRs with the `"Ready for review"` label using an API client like `octokit`.
         -   [ ] Transform the data and insert/update it into the `open_prs` table in D1.
 -   **[ ] Build the Frontend and API:**
-    -   [ ] The main worker will serve both the API and the static frontend.
+    -   [ ] The main worker will serve both the API and the static frontend. The `@cloudflare/vite-plugin` helps automate this.
     -   [ ] Set up a route (e.g., `/api/queue`) that queries the D1 database for the current queue data.
-    -   [ ] Set up another route (`/*`) to serve the static files (HTML, JS, CSS) for the Preact app from the `dist` directory.
-    -   [ ] In the Preact app, use `TanStack Query` to fetch data from the `/api/queue` endpoint.
+    -   [ ] Set up another route (`/*`) to serve the static files (HTML, JS, CSS) for the React app.
+    -   [ ] In the React app, use `TanStack Query` to fetch data from the `/api/queue` endpoint.
     -   [ ] Display the key metrics (Plugin Queue, Theme Queue) and the table of open PRs.
 
 ### Phase 2: "The Historical Context"
@@ -55,7 +52,7 @@ This phase adds historical data to provide context and enable trend analysis.
     -   [ ] Store this historical data in the `merged_prs` table in D1.
 -   **[ ] Enhance the Frontend & API:**
     -   [ ] Create a new API endpoint (e.g., `/api/history`) to query the `merged_prs` table.
-    -   [ ] Install and configure `Chart.js` for Preact.
+    -   [ ] Install and configure `Chart.js` for React.
     -   [ ] Use `TanStack Query` to fetch the historical data from the new endpoint.
     -   [ ] Implement the timeline chart to visualize merged PRs per week.
 
