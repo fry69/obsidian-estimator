@@ -15,7 +15,9 @@ interface GitHubPr {
   title: string;
   html_url: string;
   created_at: string;
-  merged_at?: string | null; // optional and can be null
+  pull_request?: {
+    merged_at?: string | null;
+  };
   labels: {
     name: string;
   }[];
@@ -88,12 +90,20 @@ async function updateMergedPrsInDb(
   prs: GitHubPr[]
 ): Promise<void> {
   try {
+    console.log(`[updateMergedPrsInDb] Received ${prs.length} PRs to process.`);
+    if (prs.length > 0) {
+      console.log("[updateMergedPrsInDb] First PR received:", JSON.stringify(prs[0], null, 2));
+    }
     await db.prepare("DELETE FROM merged_prs").run();
-    const prsToInsert = prs.filter((pr) => pr.merged_at);
+    const prsToInsert = prs.filter((pr) => pr.pull_request && pr.pull_request.merged_at);
+    console.log(`[updateMergedPrsInDb] Found ${prsToInsert.length} PRs with a merged_at date.`);
+
     if (prsToInsert.length === 0) {
       console.log("No merged PRs to update.");
       return;
     }
+
+    console.log("[updateMergedPrsInDb] First PR to insert:", JSON.stringify(prsToInsert[0], null, 2));
 
     const stmt = db.prepare(
       "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -105,7 +115,7 @@ async function updateMergedPrsInDb(
       );
       const type = typeLabel ? typeLabel.name : "unknown";
       const createdAt = new Date(pr.created_at);
-      const mergedAt = new Date(pr.merged_at!); // Non-null assertion is safe due to filter
+      const mergedAt = new Date(pr.pull_request!.merged_at!); // Non-null assertion is safe due to filter
       const daysToMerge = Math.round(
         (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -115,7 +125,7 @@ async function updateMergedPrsInDb(
         pr.html_url,
         type,
         pr.created_at,
-        pr.merged_at,
+        pr.pull_request!.merged_at!,
         daysToMerge
       );
     });
@@ -198,7 +208,7 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
   const mergedQueryDate = twelveMonthsAgo.toISOString().split('T')[0];
-  const mergedQuery = `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`;
+  const mergedQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate}`;
 
   try {
     console.log("[Scheduled] Calling GitHub API for PRs...");
