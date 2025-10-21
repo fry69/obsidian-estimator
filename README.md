@@ -2,6 +2,10 @@
 
 Web-based dashboard for tracking and estimating review times for Obsidian community plugin and theme submissions.
 
+## Live Demo
+
+Access the live dashboard at: https://obsidian-estimator.fry69.workers.dev/
+
 ## Features
 
 - Displays current queue sizes for plugins and themes.
