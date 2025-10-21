@@ -7,9 +7,8 @@
 	"name": "obsidian-estimator-react",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-10-14",
-	"assets": {
-		"not_found_handling": "single-page-application"
-	},
+	"workers_dev": true,
+	"preview_urls": true,
 	"observability": {
 		"enabled": true
 	},
@@ -48,9 +47,6 @@
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
 	"assets": { "directory": "./public/", "binding": "ASSETS" },
-	"vars": {
-		"GITHUB_TOKEN": "dummy_value"
-	}
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
