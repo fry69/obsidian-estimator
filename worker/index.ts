@@ -7,6 +7,23 @@ export interface Env {
   ASSETS: Fetcher;
 }
 
+interface GitHubLabel {
+  name: string;
+}
+
+interface GitHubPr {
+  number: number;
+  title: string;
+  html_url: string;
+  created_at: string;
+  merged_at: string | null;
+  labels: GitHubLabel[];
+  user: {
+    login: string;
+  } | null;
+}
+
+
 const router = Router();
 
 router.get("/api/queue", async (_request, env: Env) => {
@@ -48,15 +65,15 @@ export default {
     const per_page = 100; // Max per page
 
     // Fetch open plugins
-    let allOpenPlugins: any[] = [];
+    let allOpenPlugins: GitHubPr[] = [];
     let page = 1;
     while (true) {
-      const response = await octokit.search.issuesAndPullRequests({
+      const response = await octokit.search.issues({
         q: `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`,
         per_page,
         page,
       });
-      allOpenPlugins = allOpenPlugins.concat(response.data.items);
+      allOpenPlugins = allOpenPlugins.concat(response.data.items as GitHubPr[]);
       if (response.data.items.length < per_page) {
         break;
       }
@@ -64,15 +81,15 @@ export default {
     }
 
     // Fetch open themes
-    let allOpenThemes: any[] = [];
+    let allOpenThemes: GitHubPr[] = [];
     page = 1;
     while (true) {
-      const response = await octokit.search.issuesAndPullRequests({
+      const response = await octokit.search.issues({
         q: `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`,
         per_page,
         page,
       });
-      allOpenThemes = allOpenThemes.concat(response.data.items);
+      allOpenThemes = allOpenThemes.concat(response.data.items as GitHubPr[]);
       if (response.data.items.length < per_page) {
         break;
       }
@@ -85,7 +102,7 @@ export default {
     try {
       await env.obsidian_queue.prepare("DELETE FROM open_prs").run();
       for (const pr of allOpenPrs) {
-        const typeLabel = pr.labels.find((label: any) => label.name === 'plugin' || label.name === 'theme');
+        const typeLabel = pr.labels.find((label: GitHubLabel) => label.name === 'plugin' || label.name === 'theme');
         const type = typeLabel ? typeLabel.name : 'unknown';
         await env.obsidian_queue
           .prepare(
@@ -104,15 +121,15 @@ export default {
     twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
     const mergedQueryDate = twelveMonthsAgo.toISOString().split('T')[0];
 
-    let allMergedPrs: any[] = [];
+    let allMergedPrs: GitHubPr[] = [];
     page = 1;
     while (true) {
-      const response = await octokit.search.issuesAndPullRequests({
+      const response = await octokit.search.issues({
         q: `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`,
         per_page,
         page,
       });
-      allMergedPrs = allMergedPrs.concat(response.data.items);
+      allMergedPrs = allMergedPrs.concat(response.data.items as GitHubPr[]);
       if (response.data.items.length < per_page) {
         break;
       }
@@ -123,7 +140,8 @@ export default {
     try {
       await env.obsidian_queue.prepare("DELETE FROM merged_prs").run();
       for (const pr of allMergedPrs) {
-        const typeLabel = pr.labels.find((label: any) => label.name === 'plugin' || label.name === 'theme');
+        if (!pr.merged_at) continue; // Should not happen with is:merged but good for type safety
+        const typeLabel = pr.labels.find((label: GitHubLabel) => label.name === 'plugin' || label.name === 'theme');
         const type = typeLabel ? typeLabel.name : 'unknown';
         const createdAt = new Date(pr.created_at);
         const mergedAt = new Date(pr.merged_at);

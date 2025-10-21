@@ -23,7 +23,7 @@ The goal is to get a basic, live snapshot of the queue running on Cloudflare inf
     -   [X] A Cloudflare Worker project with a React/Vite frontend has been initialized.
     -   [X] The configuration file is `wrangler.jsonc`.
     -   [X] The Vite build process is configured to output static assets for the worker.
-    -   [ ] Configure Tailwind CSS for the React application.
+    -   [X] Configure Tailwind CSS for the React application.
 -   **[X] Setup Cloudflare D1 Database:**
     -   [X] Create a new D1 database: `wrangler d1 create obsidian-queue`.
     -   [X] Add the D1 binding to the `wrangler.jsonc` file.
@@ -66,7 +66,7 @@ This phase introduces the core predictive functionality.
     -   [X] Use the current queue size to estimate the wait time: `estimatedWeeks = currentQueueSize / weeklyThroughput`.
 -   **[X] Display the Estimate:**
     -   [X] Add the "Estimated Plugin Wait" and "Estimated Theme Wait" KPI cards to the UI.
-    -   [ ] Use `Zustand` if client-side state management becomes complex.
+    -   [ ] Use `Zustand` if client-side state management becomes complex. (Not currently needed)
 
 ### Phase 4: "Maturity and Refinement"
 
@@ -75,6 +75,8 @@ This phase focuses on improving the accuracy, reliability, and user experience o
 -   **[X] Refine Wait-Time Estimation:**
     -   [X] Shift from a simple average to a moving average for throughput to better reflect current review velocity.
     -   [X] Calculate a confidence interval (e.g., using standard deviation) to present the estimate as a range (e.g., "7-10 weeks").
+-   **[X] Refactor `App.tsx` into smaller components and extract logic.**
+-   **[X] Fix lint errors and adjust `@worker/index.ts` to the new octocat search syntax.**
 -   **[ ] Add Model Confidence Metric:**
     -   [ ] Implement a mechanism to track the variance of review times.
     -   [ ] Display a notice on the UI if the variance is high, indicating that estimates may be less reliable.
