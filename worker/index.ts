@@ -1,12 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { Hono } from "hono"; // Import Hono
-
-
-export interface Env {
-  obsidian_queue: D1Database;
-  GITHUB_TOKEN: string;
-  ASSETS: Fetcher;
-}
+import { Hono } from "hono";
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.
@@ -56,7 +49,6 @@ async function updateOpenPrsInDb(
   try {
     await db.prepare("DELETE FROM open_prs").run();
     if (prs.length === 0) {
-  
       return;
     }
 
@@ -89,10 +81,10 @@ async function updateMergedPrsInDb(
   prs: GitHubPr[]
 ): Promise<void> {
   try {
-
     await db.prepare("DELETE FROM merged_prs").run();
-    const prsToInsert = prs.filter((pr) => pr.pull_request && pr.pull_request.merged_at);
-
+    const prsToInsert = prs.filter(
+      (pr) => pr.pull_request && pr.pull_request.merged_at
+    );
 
     const stmt = db.prepare(
       "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -127,36 +119,42 @@ async function updateMergedPrsInDb(
 
 const app = new Hono(); // Create Hono app instance
 
-app.get('/api/data', async (c) => {
-	const env = c.env as Env; // Cast c.env to Env
-	try {
-		const [openPrs, mergedPrs] = await Promise.all([
-			env.obsidian_queue.prepare('SELECT * FROM open_prs ORDER BY createdAt ASC').all(),
-			env.obsidian_queue.prepare('SELECT * FROM merged_prs ORDER BY mergedAt ASC').all(),
-		]);
+app.get("/api/data", async (c) => {
+  const env = c.env as Env; // Cast c.env to Env
+  try {
+    const [openPrs, mergedPrs] = await Promise.all([
+      env.obsidian_queue
+        .prepare("SELECT * FROM open_prs ORDER BY createdAt ASC")
+        .all(),
+      env.obsidian_queue
+        .prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC")
+        .all(),
+    ]);
 
-		return c.json({
-			openPrs: openPrs.results,
-			mergedPrs: mergedPrs.results,
-		});
-	} catch (error) {
-		console.error('Error fetching data from D1:', error);
-		return c.json({ error: 'Failed to fetch data' }, { status: 500 });
-	}
+    return c.json({
+      openPrs: openPrs.results,
+      mergedPrs: mergedPrs.results,
+    });
+  } catch (error) {
+    console.error("Error fetching data from D1:", error);
+    return c.json({ error: "Failed to fetch data" }, { status: 500 });
+  }
 });
 
-
 app.all("/*", (c) => {
-  const env = c.env as Env;
-  // In production, ASSETS is a binding to the Cloudflare Pages asset directory.
-  // In local development, ASSETS is undefined, and we should return a 404.
-  if (env.ASSETS) {
-    return env.ASSETS.fetch(c.req.raw);
-  }
+  // Uncomment below to serve static assets if ASSETS binding is provided
+  // const env = c.env as Cloudflare.Env;
+  // if (env.ASSETS) {
+  //   return env.ASSETS.fetch(c.req.raw);
+  // }
   return c.notFound();
 });
 
-async function handleScheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+async function handleScheduled(
+  controller: ScheduledController,
+  env: Env,
+  _ctx: ExecutionContext
+): Promise<void> {
   console.log(`[Scheduled] Cron trigger fired at ${controller.scheduledTime}`);
 
   const octokit = new Octokit({
@@ -172,7 +170,7 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
 
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-  const mergedQueryDate = twelveMonthsAgo.toISOString().split('T')[0];
+  const mergedQueryDate = twelveMonthsAgo.toISOString().split("T")[0];
   const mergedQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate}`;
 
   try {
@@ -187,14 +185,20 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
       updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
       updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
     ]);
-
   } catch (error) {
-    console.error("[Scheduled] Failed to fetch data from GitHub or update database:", error);
+    console.error(
+      "[Scheduled] Failed to fetch data from GitHub or update database:",
+      error
+    );
   }
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     return app.fetch(request, env, ctx); // Use Hono app.fetch
   },
 

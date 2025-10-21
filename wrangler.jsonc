@@ -6,7 +6,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "obsidian-estimator",
   "main": "worker/index.ts",
-  "compatibility_date": "2025-10-14",
+  "compatibility_date": "2025-10-11",
   "workers_dev": true,
   "preview_urls": true,
   "observability": {

@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-estimator",
 	"private": true,
-	"version": "0.0.5",
+	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -10,7 +10,7 @@
 		"preview": "npm run build && vite preview",
 		"deploy": "npm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
-		"test": "vitest run"
+		"knip": "knip"
 	},
 	"dependencies": {
 		"@octokit/rest": "^22.0.0",
@@ -23,26 +23,22 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.13.14",
-		"@cloudflare/vitest-pool-workers": "^0.9.14",
 		"@eslint/js": "^9.36.0",
 		"@tailwindcss/postcss": "^4.1.15",
 		"@types/node": "^24.9.1",
 		"@types/react": "^19.1.16",
 		"@types/react-dom": "^19.1.9",
-		"@typescript-eslint/eslint-plugin": "^8.46.2",
 		"@vitejs/plugin-react": "^5.0.4",
-		"autoprefixer": "^10.4.21",
 		"eslint": "^9.36.0",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.22",
 		"globals": "^16.4.0",
-		"msw": "^2.11.6",
+		"knip": "^5.66.2",
 		"postcss": "^8.5.6",
 		"tailwindcss": "^4.1.15",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.45.0",
 		"vite": "^7.1.11",
-		"vitest": "^3.2.4",
 		"wrangler": "^4.44.0"
 	}
 }

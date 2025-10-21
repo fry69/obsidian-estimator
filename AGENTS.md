@@ -52,14 +52,6 @@ wrangler d1 create obsidian-queue
 wrangler d1 execute obsidian-queue --local --file=migrations/0000_initial_schema.sql
 ```
 
-### Testing (currently no tests available, please skip this step)
-
-To run the test suite, use:
-
-```bash
-npm run test
-```
-
 ### Building and Deployment
 
 To build the application for production, run:
