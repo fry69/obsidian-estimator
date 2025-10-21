@@ -147,17 +147,23 @@ router.get("/api/queue", async (_request, env: Env) => {
 
 router.get("/api/history", async (_request, env: Env) => {
   try {
-    const { results } = await env.obsidian_queue
-      .prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC")
-      .all();
+    const { results } = await env.obsidian_queue.prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC").all();
     return Response.json(results);
   } catch (error) {
     console.error("Error fetching merged PRs from D1:", error);
-    return Response.json(
-      { error: "Failed to fetch merged PRs" },
-      { status: 500 }
-    );
+    return Response.json({ error: "Failed to fetch merged PRs" }, { status: 500 });
   }
+});
+
+// Temporary endpoint to manually trigger the scheduled function for debugging/initial population
+router.get("/admin/trigger-scheduled", async (request, env: Env, ctx: ExecutionContext) => {
+  const secret = request.url.split('secret=')[1];
+  if (secret !== "YOUR_DEBUG_SECRET") { // Replace with a strong secret for actual use
+    return new Response("Unauthorized", { status: 401 });
+  }
+  console.log("Manually triggering scheduled event...");
+  await worker.scheduled({ scheduledTime: Date.now() }, env, ctx);
+  return new Response("Scheduled event triggered successfully!");
 });
 
 router.all("/*", (request, env: Env) => env.ASSETS.fetch(request));
