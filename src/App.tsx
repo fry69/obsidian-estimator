@@ -28,6 +28,7 @@ ChartJS.register(
 
 function App() {
   const [chartFilter, setChartFilter] = useState<'all' | 'plugin' | 'theme'>('all');
+  const [queueFilter, setQueueFilter] = useState<'all' | 'plugin' | 'theme'>('all');
 
   const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError } = useQuery<PullRequest[]>({
     queryKey: ['openPrs'],
@@ -55,11 +56,11 @@ function App() {
   const readyPlugins = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'plugin'), [readyForReviewPrs]);
   const readyThemes = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'theme'), [readyForReviewPrs]);
 
-  const { estimatedDays: estimatedPluginWaitDays, waitRange: pluginWaitRange } = useMemo(() => {
+  const { estimatedDays: estimatedPluginWaitDays, waitRange: pluginWaitRange, isHighVariance: isPluginWaitHighVariance } = useMemo(() => {
     return calculateWaitTime(readyForReviewPrs, mergedPrs || [], 'plugin');
   }, [readyForReviewPrs, mergedPrs]);
 
-  const { estimatedDays: estimatedThemeWaitDays, waitRange: themeWaitRange } = useMemo(() => {
+  const { estimatedDays: estimatedThemeWaitDays, waitRange: themeWaitRange, isHighVariance: isThemeWaitHighVariance } = useMemo(() => {
     return calculateWaitTime(readyForReviewPrs, mergedPrs || [], 'theme');
   }, [readyForReviewPrs, mergedPrs]);
 
@@ -88,12 +89,14 @@ function App() {
               value={estimatedPluginWaitDays}
               range={pluginWaitRange}
               color="text-sky-600"
+              isHighVariance={isPluginWaitHighVariance}
             />
             <KpiCard
               title="Estimated Theme Wait"
               value={estimatedThemeWaitDays}
               range={themeWaitRange}
               color="text-pink-600"
+              isHighVariance={isThemeWaitHighVariance}
             />
             <KpiCard
               title="Total Queue Size"
@@ -120,6 +123,8 @@ function App() {
         {/* Current Queue Table */}
         <QueueTable
           readyForReviewPrs={readyForReviewPrs}
+          filterType={queueFilter}
+          setFilterType={setQueueFilter}
         />
       </main>
 

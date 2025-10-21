@@ -72,15 +72,16 @@ This phase introduces the core predictive functionality.
 
 This phase focuses on improving the accuracy, reliability, and user experience of the platform.
 
+-   **[X] Initial project setup and verification.**
 -   **[X] Refine Wait-Time Estimation:**
     -   [X] Shift from a simple average to a moving average for throughput to better reflect current review velocity.
     -   [X] Calculate a confidence interval (e.g., using standard deviation) to present the estimate as a range (e.g., "7-10 weeks").
 -   **[X] Refactor `App.tsx` into smaller components and extract logic.**
 -   [X] Fix lint errors and adjust `@worker/index.ts` to the new octocat search syntax.
 -   [X] Implement e2e integration tests for data ingestion worker using `@cloudflare/vitest-pool-workers`.
--   **[ ] Add Model Confidence Metric:**
-    -   [ ] Implement a mechanism to track the variance of review times.
-    -   [ ] Display a notice on the UI if the variance is high, indicating that estimates may be less reliable.
--   **[ ] Enhance UI/UX:**
-    -   [ ] Add more advanced filtering and sorting options to the PR table.
-    -   [ ] Conduct a final polish of the design and user interface.
+-   **[X] Add Model Confidence Metric:**
+    -   [X] Implement a mechanism to track the variance of review times.
+    -   [X] Display a notice on the UI if the variance is high, indicating that estimates may be less reliable.
+-   **[X] Enhance UI/UX:**
+    -   [X] Add more advanced filtering and sorting options to the PR table.
+    -   [X] Conduct a final polish of the design and user interface.

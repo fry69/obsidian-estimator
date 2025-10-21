@@ -1,5 +1,6 @@
 import { Octokit } from "@octokit/rest";
-import { Router } from "itty-router";
+import { Hono } from "hono"; // Import Hono
+import { Env } from "./index"; // Import Env from the same file
 
 export interface Env {
   obsidian_queue: D1Database;
@@ -128,38 +129,43 @@ async function updateMergedPrsInDb(
   }
 }
 
-const router = Router();
+const app = new Hono(); // Create Hono app instance
 
-router.get("/api/queue", async (_request, env: Env) => {
+app.get("/api/queue", async (c) => {
+  const env = c.env as Env; // Cast c.env to Env
   try {
     const { results } = await env.obsidian_queue
       .prepare("SELECT * FROM open_prs ORDER BY createdAt ASC")
       .all();
-    return Response.json(results);
+    return c.json(results);
   } catch (error) {
     console.error("Error fetching open PRs from D1:", error);
-    return Response.json(
+    return c.json(
       { error: "Failed to fetch open PRs" },
       { status: 500 }
     );
   }
 });
 
-router.get("/api/history", async (_request, env: Env) => {
+app.get("/api/history", async (c) => {
+  const env = c.env as Env; // Cast c.env to Env
   try {
     const { results } = await env.obsidian_queue.prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC").all();
-    return Response.json(results);
+    return c.json(results);
   } catch (error) {
     console.error("Error fetching merged PRs from D1:", error);
-    return Response.json({ error: "Failed to fetch merged PRs" }, { status: 500 });
+    return c.json({ error: "Failed to fetch merged PRs" }, { status: 500 });
   }
 });
 
 // Temporary endpoint to manually trigger the scheduled function for debugging/initial population
-router.get("/admin/trigger-scheduled", async (request, env: Env, ctx: ExecutionContext) => {
-  const secret = request.url.split('secret=')[1];
+app.get("/admin/trigger-scheduled", async (c) => {
+  const env = c.env as Env; // Cast c.env to Env
+  const ctx = c.executionCtx; // Get execution context from Hono context
+  const secret = c.req.query('secret'); // Get query param from Hono request
+
   if (secret !== "YOUR_DEBUG_SECRET") { // Replace with a strong secret for actual use
-    return new Response("Unauthorized", { status: 401 });
+    return c.text("Unauthorized", 401);
   }
   console.log("Manually triggering scheduled event...");
   await handleScheduled({
@@ -167,13 +173,16 @@ router.get("/admin/trigger-scheduled", async (request, env: Env, ctx: ExecutionC
     cron: "* * * * *", // Dummy value for cron
     noRetry: () => {},    // Dummy function for noRetry
   }, env, ctx);
-  return new Response("Scheduled event triggered successfully!");
+  return c.text("Scheduled event triggered successfully!");
 });
 
-router.all("/*", (request, env: Env) => env.ASSETS.fetch(request));
+app.all("/*", async (c) => {
+  const env = c.env as Env; // Cast c.env to Env
+  return env.ASSETS.fetch(c.req.raw); // Serve static assets
+});
 
 async function handleScheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-  console.log(`Cron trigger fired at ${controller.scheduledTime}`);
+  console.log(`[Scheduled] Cron trigger fired at ${controller.scheduledTime}`);
 
   const octokit = new Octokit({
     auth: env.GITHUB_TOKEN,
@@ -182,7 +191,7 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
   const owner = "obsidianmd";
   const repo = "obsidian-releases";
 
-  // --- 1. Fetch Data from GitHub ---
+  console.log("[Scheduled] Fetching open plugins...");
   const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
   const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
 
@@ -192,30 +201,32 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
   const mergedQuery = `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`;
 
   try {
+    console.log("[Scheduled] Calling GitHub API for PRs...");
     const [openPlugins, openThemes, mergedPrs] = await Promise.all([
       searchGitHubIssues(octokit, openPluginsQuery),
       searchGitHubIssues(octokit, openThemesQuery),
       searchGitHubIssues(octokit, mergedQuery),
     ]);
+    console.log(`[Scheduled] Fetched ${openPlugins.length} open plugins, ${openThemes.length} open themes, ${mergedPrs.length} merged PRs.`);
 
     const allOpenPrs = [...openPlugins, ...openThemes];
 
-    // --- 2. Update Database ---
+    console.log("[Scheduled] Updating database...");
     await Promise.all([
       updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
       updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
     ]);
 
-    console.log("Successfully updated all database tables.");
+    console.log("[Scheduled] Successfully updated all database tables.");
 
   } catch (error) {
-    console.error("Failed to fetch data from GitHub or update database:", error);
+    console.error("[Scheduled] Failed to fetch data from GitHub or update database:", error);
   }
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return router.handle(request, env, ctx);
+    return app.fetch(request, env, ctx); // Use Hono app.fetch
   },
 
   scheduled: handleScheduled,

@@ -43,7 +43,10 @@ export const calculateWaitTime = (
     waitRange = `(${Math.max(0, lowerBound)}–${upperBound} days)`;
   }
 
-  return { estimatedDays, waitRange };
+  const confidenceThreshold = 0.5; // If stdDev is more than 50% of the mean, consider it high variance
+  const isHighVariance = !isNaN(stats.mean) && stats.mean > 0 && (stats.stdDev / stats.mean) > confidenceThreshold;
+
+  return { estimatedDays, waitRange, isHighVariance };
 };
 
 
