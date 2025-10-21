@@ -30,10 +30,13 @@ function App() {
   const [chartFilter, setChartFilter] = useState<'all' | 'plugin' | 'theme'>('all');
   const [queueFilter, setQueueFilter] = useState<'all' | 'plugin' | 'theme'>('all');
 
-  const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError } = useQuery<PullRequest[]>({
-    queryKey: ['openPrs'],
+  const { data, isLoading, error } = useQuery<{
+    openPrs: PullRequest[];
+    mergedPrs: MergedPullRequest[];
+  }>({
+    queryKey: ['prData'],
     queryFn: async () => {
-      const response = await fetch('/api/queue');
+      const response = await fetch('/api/data');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -42,17 +45,8 @@ function App() {
     refetchInterval: 1000 * 60 * 30, // 30 minutes
   });
 
-  const { data: mergedPrs, isLoading: isLoadingMergedPrs, error: mergedPrsError } = useQuery<MergedPullRequest[]>({
-    queryKey: ['mergedPrs'],
-    queryFn: async () => {
-      const response = await fetch('/api/history');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    },
-    refetchInterval: 1000 * 60 * 30, // 30 minutes
-  });
+  const openPrs = data?.openPrs;
+  const mergedPrs = data?.mergedPrs;
 
   const readyForReviewPrs = useMemo(() => openPrs || [], [openPrs]);
   const readyPlugins = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'plugin'), [readyForReviewPrs]);
@@ -71,9 +65,8 @@ function App() {
   }, [mergedPrs, chartFilter]);
 
 
-  if (isLoadingOpenPrs || isLoadingMergedPrs) return <div className="text-center p-8 text-slate-500">Loading data...</div>;
-  if (openPrsError) return <div className="text-center p-8 text-red-500">Error fetching open PRs: {openPrsError.message}</div>;
-  if (mergedPrsError) return <div className="text-center p-8 text-red-500">Error fetching merged PRs: {mergedPrsError.message}</div>;
+  if (isLoading) return <div className="text-center p-8 text-slate-500">Loading data...</div>;
+  if (error) return <div className="text-center p-8 text-red-500">Error fetching data: {error.message}</div>;
 
   return (
     <div className="container mx-auto p-4 md:p-8">

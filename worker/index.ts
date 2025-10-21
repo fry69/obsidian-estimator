@@ -127,31 +127,22 @@ async function updateMergedPrsInDb(
 
 const app = new Hono(); // Create Hono app instance
 
-app.get("/api/queue", async (c) => {
-  const env = c.env as Env; // Cast c.env to Env
-  try {
-    const { results } = await env.obsidian_queue
-      .prepare("SELECT * FROM open_prs ORDER BY createdAt ASC")
-      .all();
-    return c.json(results);
-  } catch (_error) {
+app.get('/api/data', async (c) => {
+	const env = c.env as Env; // Cast c.env to Env
+	try {
+		const [openPrs, mergedPrs] = await Promise.all([
+			env.obsidian_queue.prepare('SELECT * FROM open_prs ORDER BY createdAt ASC').all(),
+			env.obsidian_queue.prepare('SELECT * FROM merged_prs ORDER BY mergedAt ASC').all(),
+		]);
 
-    return c.json(
-      { error: "Failed to fetch open PRs" },
-      { status: 500 }
-    );
-  }
-});
-
-app.get("/api/history", async (c) => {
-  const env = c.env as Env; // Cast c.env to Env
-  try {
-    const { results } = await env.obsidian_queue.prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC").all();
-    return c.json(results);
-  } catch (_error) {
-
-    return c.json({ error: "Failed to fetch merged PRs" }, { status: 500 });
-  }
+		return c.json({
+			openPrs: openPrs.results,
+			mergedPrs: mergedPrs.results,
+		});
+	} catch (error) {
+		console.error('Error fetching data from D1:', error);
+		return c.json({ error: 'Failed to fetch data' }, { status: 500 });
+	}
 });
 
 
@@ -170,7 +161,7 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
   const owner = "obsidianmd";
   const repo = "obsidian-releases";
 
-  console.log("[Scheduled] Fetching open plugins...");
+  console.log("[Scheduled] Fetching open plugins and themes...");
   const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
   const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
 
