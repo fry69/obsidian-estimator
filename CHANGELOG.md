@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Refactored `worker/index.ts` for improved efficiency and type safety.
+- Updated testing setup to use `@cloudflare/vitest-pool-workers` and `vitest.config.ts`.
 - Corrected Octokit search syntax in `worker/index.ts` from `octokit.search.issues` to `octokit.rest.search.issues`.
 - Refactored `src/App.tsx` into smaller components and extracted calculation logic.
 - Added `src/lib/calculations.ts` for wait time and chart data logic.

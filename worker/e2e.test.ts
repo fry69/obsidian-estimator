@@ -1,6 +1,7 @@
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import worker from "../worker/index"; // Import the worker entrypoint
-import { Env } from "../worker/index";
+import { vi, describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { env } from "cloudflare:test";
+import worker from "./index"; // Import the worker entrypoint
+import type { Env } from "./index";
 
 // Mock the Octokit library
 vi.mock("@octokit/rest", () => {
@@ -25,7 +26,7 @@ vi.mock("@octokit/rest", () => {
     },
   ];
 
-  const paginate = vi.fn().mockImplementation(async (route, options) => {
+  const paginate = vi.fn().mockImplementation(async (_route, options) => {
     if (options.q.includes('label:plugin')) {
         return mockOpenPlugins;
     }
@@ -38,21 +39,49 @@ vi.mock("@octokit/rest", () => {
     return [];
   });
 
+  const mockRequest = vi.fn().mockResolvedValue({ data: { items: [] } });
+
   const Octokit = vi.fn().mockImplementation(() => ({
     paginate,
-    // Mock other Octokit methods if needed
+    request: mockRequest
   }));
 
   return { Octokit };
 });
 
+const D1_SCHEMA = `
+DROP TABLE IF EXISTS open_prs;
+CREATE TABLE open_prs (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    type TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
+DROP TABLE IF EXISTS merged_prs;
+CREATE TABLE merged_prs (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    type TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    mergedAt TEXT,
+    daysToMerge INTEGER
+);
+`;
 
 describe("scheduled handler integration test", () => {
-  let env: Env;
+
+  beforeAll(async () => {
+    // Apply the D1 schema before all tests by executing statements individually
+    const statements = D1_SCHEMA.split(';').map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 0);
+    for (const stmt of statements) {
+      await env.obsidian_queue.exec(stmt);
+    }
+  });
 
   beforeEach(async () => {
-    // Get the environment bindings from the testing environment
-    env = getMiniflareBindings<Env>();
     // Ensure tables are clean before each test
     await env.obsidian_queue.exec("DELETE FROM open_prs; DELETE FROM merged_prs;");
   });
@@ -62,13 +91,14 @@ describe("scheduled handler integration test", () => {
     const controller = { scheduledTime: Date.now() };
     // We don't use the real ExecutionContext in this test
     const ctx = {} as ExecutionContext;
+    const testEnv = env as Env;
 
-    await worker.scheduled(controller, env, ctx);
+    await worker.scheduled(controller, testEnv, ctx);
 
     // --- 2. Verify the results in the D1 database ---
 
     // Check for open PRs
-    const { results: openPrs } = await env.obsidian_queue
+    const { results: openPrs } = await testEnv.obsidian_queue
       .prepare("SELECT * FROM open_prs")
       .all();
 
@@ -78,7 +108,7 @@ describe("scheduled handler integration test", () => {
     expect(openPrs[0].type).toBe("plugin");
 
     // Check for merged PRs
-    const { results: mergedPrs } = await env.obsidian_queue
+    const { results: mergedPrs } = await testEnv.obsidian_queue
       .prepare("SELECT * FROM merged_prs")
       .all();
 
