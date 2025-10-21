@@ -19,8 +19,21 @@ ChartJS.register(
   Legend
 );
 
+interface ChartDataset {
+  label: string;
+  data: number[];
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+}
+
+interface ChartDataType {
+  labels: string[];
+  datasets: ChartDataset[];
+}
+
 interface TimelineChartProps {
-  chartData: any; // TODO: Define a proper type for chartData
+  chartData: ChartDataType;
   chartFilter: 'all' | 'plugin' | 'theme';
   setChartFilter: (filter: 'all' | 'plugin' | 'theme') => void;
 }

@@ -162,65 +162,61 @@ router.get("/admin/trigger-scheduled", async (request, env: Env, ctx: ExecutionC
     return new Response("Unauthorized", { status: 401 });
   }
   console.log("Manually triggering scheduled event...");
-  await worker.scheduled({ scheduledTime: Date.now() }, env, ctx);
+  await handleScheduled({
+    scheduledTime: Date.now(),
+    cron: "* * * * *", // Dummy value for cron
+    noRetry: () => {},    // Dummy function for noRetry
+  }, env, ctx);
   return new Response("Scheduled event triggered successfully!");
 });
 
 router.all("/*", (request, env: Env) => env.ASSETS.fetch(request));
 
+async function handleScheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+  console.log(`Cron trigger fired at ${controller.scheduledTime}`);
+
+  const octokit = new Octokit({
+    auth: env.GITHUB_TOKEN,
+  });
+
+  const owner = "obsidianmd";
+  const repo = "obsidian-releases";
+
+  // --- 1. Fetch Data from GitHub ---
+  const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
+  const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
+
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
+  const mergedQueryDate = twelveMonthsAgo.toISOString().split('T')[0];
+  const mergedQuery = `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`;
+
+  try {
+    const [openPlugins, openThemes, mergedPrs] = await Promise.all([
+      searchGitHubIssues(octokit, openPluginsQuery),
+      searchGitHubIssues(octokit, openThemesQuery),
+      searchGitHubIssues(octokit, mergedQuery),
+    ]);
+
+    const allOpenPrs = [...openPlugins, ...openThemes];
+
+    // --- 2. Update Database ---
+    await Promise.all([
+      updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
+      updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
+    ]);
+
+    console.log("Successfully updated all database tables.");
+
+  } catch (error) {
+    console.error("Failed to fetch data from GitHub or update database:", error);
+  }
+}
+
 export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return router.handle(request, env, ctx);
   },
 
-  async scheduled(
-    controller: ScheduledController,
-    env: Env,
-    _ctx: ExecutionContext
-  ): Promise<void> {
-    console.log(`Cron trigger fired at ${controller.scheduledTime}`);
-
-    const octokit = new Octokit({
-      auth: env.GITHUB_TOKEN,
-    });
-
-    const owner = "obsidianmd";
-    const repo = "obsidian-releases";
-
-    // --- 1. Fetch Data from GitHub ---
-    const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
-    const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
-
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-    const mergedQueryDate = twelveMonthsAgo.toISOString().split("T")[0];
-    const mergedQuery = `is:pr repo:${owner}/${repo} is:merged label:"Ready for review" merged:>${mergedQueryDate}`;
-
-    try {
-      const [openPlugins, openThemes, mergedPrs] = await Promise.all([
-        searchGitHubIssues(octokit, openPluginsQuery),
-        searchGitHubIssues(octokit, openThemesQuery),
-        searchGitHubIssues(octokit, mergedQuery),
-      ]);
-
-      const allOpenPrs = [...openPlugins, ...openThemes];
-
-      // --- 2. Update Database ---
-      await Promise.all([
-        updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
-        updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
-      ]);
-
-      console.log("Successfully updated all database tables.");
-    } catch (error) {
-      console.error(
-        "Failed to fetch data from GitHub or update database:",
-        error
-      );
-    }
-  },
+  scheduled: handleScheduled,
 } satisfies ExportedHandler<Env>;

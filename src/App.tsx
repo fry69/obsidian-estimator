@@ -51,9 +51,9 @@ function App() {
     },
   });
 
-  const readyForReviewPrs = openPrs || [];
-  const readyPlugins = readyForReviewPrs.filter(pr => pr.type === 'plugin');
-  const readyThemes = readyForReviewPrs.filter(pr => pr.type === 'theme');
+  const readyForReviewPrs = useMemo(() => openPrs || [], [openPrs]);
+  const readyPlugins = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'plugin'), [readyForReviewPrs]);
+  const readyThemes = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'theme'), [readyForReviewPrs]);
 
   const { estimatedDays: estimatedPluginWaitDays, waitRange: pluginWaitRange } = useMemo(() => {
     return calculateWaitTime(readyForReviewPrs, mergedPrs || [], 'plugin');

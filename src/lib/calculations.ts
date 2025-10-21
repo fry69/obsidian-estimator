@@ -82,6 +82,8 @@ export const generateChartData = (mergedPrs: MergedPullRequest[], filterType: 'a
             label: 'Plugins Merged',
             data: pluginCounts,
             backgroundColor: 'rgb(2, 132, 199)', // sky-600
+            borderColor: 'rgb(2, 132, 199)',
+            borderWidth: 1,
         });
     }
     if (filterType === 'all' || filterType === 'theme') {
@@ -89,6 +91,8 @@ export const generateChartData = (mergedPrs: MergedPullRequest[], filterType: 'a
             label: 'Themes Merged',
             data: themeCounts,
             backgroundColor: 'rgb(219, 39, 119)', // pink-600
+            borderColor: 'rgb(219, 39, 119)',
+            borderWidth: 1,
         });
     }
 

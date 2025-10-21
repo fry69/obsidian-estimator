@@ -74,21 +74,27 @@ CREATE TABLE merged_prs (
 describe("scheduled handler integration test", () => {
 
   beforeAll(async () => {
+    const testEnv = env as Env;
     // Apply the D1 schema before all tests by executing statements individually
     const statements = D1_SCHEMA.split(';').map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 0);
     for (const stmt of statements) {
-      await env.obsidian_queue.exec(stmt);
+      await testEnv.obsidian_queue.exec(stmt);
     }
   });
 
   beforeEach(async () => {
+    const testEnv = env as Env;
     // Ensure tables are clean before each test
-    await env.obsidian_queue.exec("DELETE FROM open_prs; DELETE FROM merged_prs;");
+    await testEnv.obsidian_queue.exec("DELETE FROM open_prs; DELETE FROM merged_prs;");
   });
 
   it("should fetch PRs from GitHub and store them in D1", async () => {
     // --- 1. Execute the scheduled event handler ---
-    const controller = { scheduledTime: Date.now() };
+    const controller: ScheduledController = {
+      scheduledTime: Date.now(),
+      cron: "* * * * *", // Dummy value for cron
+      noRetry: () => {},    // Dummy function for noRetry
+    };
     // We don't use the real ExecutionContext in this test
     const ctx = {} as ExecutionContext;
     const testEnv = env as Env;
