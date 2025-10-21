@@ -1,5 +1,5 @@
 
-import type { MergedPullRequest, PullRequest } from '../types';
+import type { MergedPullRequest } from '../types';
 
 const VELOCITY_WEEKS = 12;
 
@@ -16,7 +16,6 @@ const calculateStats = (prs: MergedPullRequest[]) => {
 };
 
 export const calculateWaitTime = (
-  queue: PullRequest[],
   history: MergedPullRequest[],
   type: 'plugin' | 'theme'
 ) => {

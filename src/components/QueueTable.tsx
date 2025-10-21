@@ -24,7 +24,7 @@ const QueueTable: React.FC<QueueTableProps> = ({ readyForReviewPrs, filterType, 
   };
 
   const sortedAndFilteredPrs = useMemo(() => {
-    let sortablePrs = readyForReviewPrs.filter(pr => {
+    const sortablePrs = readyForReviewPrs.filter(pr => {
       if (filterType === 'all') return true;
       return pr.type === filterType;
     });

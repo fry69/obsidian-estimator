@@ -82,6 +82,11 @@ This phase focuses on improving the accuracy, reliability, and user experience o
 -   **[X] Add Model Confidence Metric:**
     -   [X] Implement a mechanism to track the variance of review times.
     -   [X] Display a notice on the UI if the variance is high, indicating that estimates may be less reliable.
+-   **[X] Final code review and cleanup:**
+    -   [X] Remove debug statements.
+    -   [X] Remove manual refresh button and implement automatic 30-minute data refresh.
+    -   [X] Fixed linting and build errors.
+    -   [X] Corrected `mergedQuery` logic in `worker/index.ts`.
 -   **[X] Enhance UI/UX:**
     -   [X] Add more advanced filtering and sorting options to the PR table.
     -   [X] Conduct a final polish of the design and user interface.

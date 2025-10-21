@@ -30,7 +30,7 @@ function App() {
   const [chartFilter, setChartFilter] = useState<'all' | 'plugin' | 'theme'>('all');
   const [queueFilter, setQueueFilter] = useState<'all' | 'plugin' | 'theme'>('all');
 
-  const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError, refetch: refetchOpenPrs } = useQuery<PullRequest[]>({
+  const { data: openPrs, isLoading: isLoadingOpenPrs, error: openPrsError } = useQuery<PullRequest[]>({
     queryKey: ['openPrs'],
     queryFn: async () => {
       const response = await fetch('/api/queue');
@@ -39,9 +39,10 @@ function App() {
       }
       return response.json();
     },
+    refetchInterval: 1000 * 60 * 30, // 30 minutes
   });
 
-  const { data: mergedPrs, isLoading: isLoadingMergedPrs, error: mergedPrsError, refetch: refetchMergedPrs } = useQuery<MergedPullRequest[]>({
+  const { data: mergedPrs, isLoading: isLoadingMergedPrs, error: mergedPrsError } = useQuery<MergedPullRequest[]>({
     queryKey: ['mergedPrs'],
     queryFn: async () => {
       const response = await fetch('/api/history');
@@ -50,6 +51,7 @@ function App() {
       }
       return response.json();
     },
+    refetchInterval: 1000 * 60 * 30, // 30 minutes
   });
 
   const readyForReviewPrs = useMemo(() => openPrs || [], [openPrs]);
@@ -57,12 +59,12 @@ function App() {
   const readyThemes = useMemo(() => readyForReviewPrs.filter(pr => pr.type === 'theme'), [readyForReviewPrs]);
 
   const { estimatedDays: estimatedPluginWaitDays, waitRange: pluginWaitRange, isHighVariance: isPluginWaitHighVariance } = useMemo(() => {
-    return calculateWaitTime(readyForReviewPrs, mergedPrs || [], 'plugin');
-  }, [readyForReviewPrs, mergedPrs]);
+    return calculateWaitTime(mergedPrs || [], 'plugin');
+  }, [mergedPrs]);
 
   const { estimatedDays: estimatedThemeWaitDays, waitRange: themeWaitRange, isHighVariance: isThemeWaitHighVariance } = useMemo(() => {
-    return calculateWaitTime(readyForReviewPrs, mergedPrs || [], 'theme');
-  }, [readyForReviewPrs, mergedPrs]);
+    return calculateWaitTime(mergedPrs || [], 'theme');
+  }, [mergedPrs]);
 
   const chartData = useMemo(() => {
     return generateChartData(mergedPrs || [], chartFilter);
@@ -78,15 +80,7 @@ function App() {
       <header className="text-center mb-10">
         <h1 className="text-4xl font-bold text-slate-900">Obsidian Release PR Queue</h1>
         <p className="mt-2 text-lg text-slate-600">Dashboard for community plugin & theme submissions.</p>
-        <button
-          className="mt-4 px-4 py-2 bg-sky-600 text-white rounded-md shadow"
-          onClick={() => {
-            refetchOpenPrs();
-            refetchMergedPrs();
-          }}
-        >
-          Refetch Data
-        </button>
+
       </header>
 
       <main>

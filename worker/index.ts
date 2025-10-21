@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { Hono } from "hono"; // Import Hono
-import { Env } from "./index"; // Import Env from the same file
+
 
 export interface Env {
   obsidian_queue: D1Database;
@@ -56,7 +56,7 @@ async function updateOpenPrsInDb(
   try {
     await db.prepare("DELETE FROM open_prs").run();
     if (prs.length === 0) {
-      console.log("No open PRs to update.");
+  
       return;
     }
 
@@ -73,7 +73,6 @@ async function updateOpenPrsInDb(
     });
 
     await db.batch(batch);
-    console.log(`Successfully updated open_prs table with ${prs.length} PRs.`);
   } catch (error) {
     console.error("Error updating open_prs table:", error);
   }
@@ -90,20 +89,10 @@ async function updateMergedPrsInDb(
   prs: GitHubPr[]
 ): Promise<void> {
   try {
-    console.log(`[updateMergedPrsInDb] Received ${prs.length} PRs to process.`);
-    if (prs.length > 0) {
-      console.log("[updateMergedPrsInDb] First PR received:", JSON.stringify(prs[0], null, 2));
-    }
+
     await db.prepare("DELETE FROM merged_prs").run();
     const prsToInsert = prs.filter((pr) => pr.pull_request && pr.pull_request.merged_at);
-    console.log(`[updateMergedPrsInDb] Found ${prsToInsert.length} PRs with a merged_at date.`);
 
-    if (prsToInsert.length === 0) {
-      console.log("No merged PRs to update.");
-      return;
-    }
-
-    console.log("[updateMergedPrsInDb] First PR to insert:", JSON.stringify(prsToInsert[0], null, 2));
 
     const stmt = db.prepare(
       "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -131,9 +120,6 @@ async function updateMergedPrsInDb(
     });
 
     await db.batch(batch);
-    console.log(
-      `Successfully updated merged_prs table with ${prsToInsert.length} PRs.`
-    );
   } catch (error) {
     console.error("Error updating merged_prs table:", error);
   }
@@ -148,8 +134,8 @@ app.get("/api/queue", async (c) => {
       .prepare("SELECT * FROM open_prs ORDER BY createdAt ASC")
       .all();
     return c.json(results);
-  } catch (error) {
-    console.error("Error fetching open PRs from D1:", error);
+  } catch (_error) {
+
     return c.json(
       { error: "Failed to fetch open PRs" },
       { status: 500 }
@@ -162,29 +148,12 @@ app.get("/api/history", async (c) => {
   try {
     const { results } = await env.obsidian_queue.prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC").all();
     return c.json(results);
-  } catch (error) {
-    console.error("Error fetching merged PRs from D1:", error);
+  } catch (_error) {
+
     return c.json({ error: "Failed to fetch merged PRs" }, { status: 500 });
   }
 });
 
-// Temporary endpoint to manually trigger the scheduled function for debugging/initial population
-app.get("/admin/trigger-scheduled", async (c) => {
-  const env = c.env as Env; // Cast c.env to Env
-  const ctx = c.executionCtx; // Get execution context from Hono context
-  const secret = c.req.query('secret'); // Get query param from Hono request
-
-  if (secret !== "YOUR_DEBUG_SECRET") { // Replace with a strong secret for actual use
-    return c.text("Unauthorized", 401);
-  }
-  console.log("Manually triggering scheduled event...");
-  await handleScheduled({
-    scheduledTime: Date.now(),
-    cron: "* * * * *", // Dummy value for cron
-    noRetry: () => {},    // Dummy function for noRetry
-  }, env, ctx);
-  return c.text("Scheduled event triggered successfully!");
-});
 
 app.all("/*", async (c) => {
   const env = c.env as Env; // Cast c.env to Env
@@ -211,23 +180,17 @@ async function handleScheduled(controller: ScheduledController, env: Env, _ctx: 
   const mergedQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate}`;
 
   try {
-    console.log("[Scheduled] Calling GitHub API for PRs...");
     const [openPlugins, openThemes, mergedPrs] = await Promise.all([
       searchGitHubIssues(octokit, openPluginsQuery),
       searchGitHubIssues(octokit, openThemesQuery),
       searchGitHubIssues(octokit, mergedQuery),
     ]);
-    console.log(`[Scheduled] Fetched ${openPlugins.length} open plugins, ${openThemes.length} open themes, ${mergedPrs.length} merged PRs.`);
-
     const allOpenPrs = [...openPlugins, ...openThemes];
 
-    console.log("[Scheduled] Updating database...");
     await Promise.all([
       updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
       updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
     ]);
-
-    console.log("[Scheduled] Successfully updated all database tables.");
 
   } catch (error) {
     console.error("[Scheduled] Failed to fetch data from GitHub or update database:", error);

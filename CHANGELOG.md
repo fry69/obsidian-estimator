@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Fixed linting and build errors.
+- Corrected `mergedQuery` logic in `worker/index.ts`.
+- Removed manual refresh button and implemented automatic 30-minute data refresh.
 - Refactored `worker/index.ts` for improved efficiency and type safety.
 - Updated testing setup to use `@cloudflare/vitest-pool-workers` and `vitest.config.ts`.
 - Corrected Octokit search syntax in `worker/index.ts` from `octokit.search.issues` to `octokit.rest.search.issues`.

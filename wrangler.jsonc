@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "obsidian-estimator-react",
+	"name": "obsidian-estimator",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-10-14",
 	"workers_dev": true,
