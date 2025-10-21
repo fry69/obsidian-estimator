@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Created README.md.
 - Fixed linting and build errors.
 - Corrected `mergedQuery` logic in `worker/index.ts`.
 - Removed manual refresh button and implemented automatic 30-minute data refresh.
