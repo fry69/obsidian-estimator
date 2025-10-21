@@ -85,26 +85,32 @@ function App() {
               value={estimatedPluginWaitDays}
               range={pluginWaitRange}
               color="text-sky-600"
-              isHighVariance={isPluginWaitHighVariance}
+              warning={isPluginWaitHighVariance ? 'Estimates may be less reliable due to high variance.' : undefined}
+              note="This is an estimate for new submissions and may be high due to the large queue size."
+              description="Based on recent review velocity"
             />
             <KpiCard
               title="Estimated Theme Wait"
               value={estimatedThemeWaitDays}
               range={themeWaitRange}
               color="text-pink-600"
-              isHighVariance={isThemeWaitHighVariance}
+              warning={isThemeWaitHighVariance ? 'Estimates may be less reliable due to high variance.' : undefined}
+              description="Based on recent review velocity"
             />
             <KpiCard
               title="Total Queue Size"
               value={readyForReviewPrs.length}
+              description='PRs "Ready for review"'
             />
             <KpiCard
               title="Plugin Queue"
               value={readyPlugins.length}
+              description='"plugin" & "Ready for review"'
             />
             <KpiCard
               title="Theme Queue"
               value={readyThemes.length}
+              description='"theme" & "Ready for review"'
             />
           </div>
         </section>
