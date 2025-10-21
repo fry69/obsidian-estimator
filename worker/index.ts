@@ -9,7 +9,7 @@ export interface Env {
 
 const router = Router();
 
-router.get("/api/queue", async (request, env: Env) => {
+router.get("/api/queue", async (_request, env: Env) => {
   try {
     const { results } = await env.obsidian_queue.prepare("SELECT * FROM open_prs ORDER BY createdAt ASC").all();
     return Response.json(results);
@@ -19,7 +19,7 @@ router.get("/api/queue", async (request, env: Env) => {
   }
 });
 
-router.get("/api/history", async (request, env: Env) => {
+router.get("/api/history", async (_request, env: Env) => {
   try {
     const { results } = await env.obsidian_queue.prepare("SELECT * FROM merged_prs ORDER BY mergedAt ASC").all();
     return Response.json(results);
@@ -36,7 +36,7 @@ export default {
     return router.handle(request, env, ctx);
   },
 
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     console.log(`Cron trigger fired at ${controller.scheduledTime}`);
 
     const octokit = new Octokit({

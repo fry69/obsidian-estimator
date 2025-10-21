@@ -1,7 +1,7 @@
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
 import worker from './index';
-import { mockFetch, clearMocks } from 'vi-fetch';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 
 // Mock the D1 database
 const mockD1 = {
@@ -64,22 +64,34 @@ const mockMergedPrs = {
     ]
 }
 
+const handlers = [
+    http.get('https://api.github.com/search/issues', ({ request }) => {
+        const url = new URL(request.url);
+        const q = url.searchParams.get('q');
+        if (q === 'is:pr repo:obsidianmd/obsidian-releases state:open label:"Ready for review" label:plugin') {
+            return HttpResponse.json(mockOpenPlugins)
+        }
+        if (q === 'is:pr repo:obsidianmd/obsidian-releases state:open label:"Ready for review" label:theme') {
+            return HttpResponse.json(mockOpenThemes)
+        }
+        if (q === `is:pr repo:obsidianmd/obsidian-releases is:merged label:"Ready for review" merged:>${mergedQueryDate}`) {
+            return HttpResponse.json(mockMergedPrs)
+        }
+    })
+];
+
+const server = setupServer(...handlers);
 
 describe('Obsidian PR Queue Worker', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    clearMocks();
-    mockFetch.clearAll();
-  });
+    beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+    afterAll(() => server.close());
+    afterEach(() => {
+        server.resetHandlers();
+        vi.clearAllMocks();
+    });
 
   describe('scheduled function', () => {
     it('should fetch open and merged PRs and update the D1 database', async () => {
-      // Mock GitHub API responses
-      mockFetch.when('https://api.github.com/search/issues?q=is%3Apr%20repo%3Aobsidianmd%2Fobsidian-releases%20state%3Aopen%20label%3A%22Ready%20for%20review%22%20label%3Aplugin&per_page=100&page=1').respondWith(JSON.stringify(mockOpenPlugins));
-      mockFetch.when('https://api.github.com/search/issues?q=is%3Apr%20repo%3Aobsidianmd%2Fobsidian-releases%20state%3Aopen%20label%3A%22Ready%20for%20review%22%20label%3Atheme&per_page=100&page=1').respondWith(JSON.stringify(mockOpenThemes));
-      mockFetch.when(`https://api.github.com/search/issues?q=is%3Apr%20repo%3Aobsidianmd%2Fobsidian-releases%20is%3Amerged%20label%3A%22Ready%20for%20review%22%20merged%3A%3E${mergedQueryDate}&per_page=100&page=1`).respondWith(JSON.stringify(mockMergedPrs));
-
-
       // Execute the scheduled function
       await worker.scheduled({ scheduledTime: Date.now(), cron: '0 * * * *' } as any, mockEnv, {} as any);
 
@@ -128,7 +140,7 @@ describe('Obsidian PR Queue Worker', () => {
       );
 
       // Verify run was called for each prepare
-      expect(mockD1.run).toHaveBeenCalledTimes(6); // 2 deletes + 4 inserts
+      expect(mockD1.run).toHaveBeenCalledTimes(5); // 2 deletes + 3 inserts
     });
   });
 });

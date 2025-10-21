@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Tests for data ingestion worker.
 - Project initialized with React/Vite/Cloudflare template
 - Implementation plan updated for React/Vite
 - D1 database created and schema applied.
