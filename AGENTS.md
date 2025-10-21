@@ -26,6 +26,20 @@ To run the application in development mode, which includes hot-reloading, use:
 npm run dev
 ```
 
+This will start the Vite development server for the frontend and the Cloudflare Worker in a local environment, it will run continuously until stopped via `Ctrl+C` or typing 'q` plus enter in the running terminal. The actual URL for the worker frontend will be displayed in the terminal. You will likely have MCP playwright enabled to access it.
+
+Linting can be performed with:
+
+```bash
+npm run lint
+```
+
+Type checking can be performed with the build command:
+
+```bash
+npm run build
+```
+
 ### Database
 
 The application uses Cloudflare D1 for its database. To create the database and apply the initial schema for local development, use the following `wrangler` commands:
@@ -38,7 +52,7 @@ wrangler d1 create obsidian-queue
 wrangler d1 execute obsidian-queue --local --file=migrations/0000_initial_schema.sql
 ```
 
-### Testing
+### Testing (currently no tests available, please skip this step)
 
 To run the test suite, use:
 

@@ -146,9 +146,14 @@ app.get('/api/data', async (c) => {
 });
 
 
-app.all("/*", async (c) => {
-  const env = c.env as Env; // Cast c.env to Env
-  return env.ASSETS.fetch(c.req.raw); // Serve static assets
+app.all("/*", (c) => {
+  const env = c.env as Env;
+  // In production, ASSETS is a binding to the Cloudflare Pages asset directory.
+  // In local development, ASSETS is undefined, and we should return a 404.
+  if (env.ASSETS) {
+    return env.ASSETS.fetch(c.req.raw);
+  }
+  return c.notFound();
 });
 
 async function handleScheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
