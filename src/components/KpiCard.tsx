@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface KpiCardProps {
   title: string;
@@ -11,17 +11,39 @@ interface KpiCardProps {
   note?: string;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ title, value, subtitle, range, color = 'text-slate-700', description, warning, note }) => {
+const KpiCard: React.FC<KpiCardProps> = ({
+  title,
+  value,
+  subtitle,
+  range,
+  color = "text-[color:var(--foreground)]",
+  description,
+  warning,
+  note,
+}) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 text-center transition-transform duration-200 ease-in-out hover:-translate-y-1 hover:shadow-lg">
-      <h3 className="text-lg font-semibold text-slate-500">{title}</h3>
-      <p className={`text-5xl font-bold mt-2 ${color}`}>{value}{subtitle && <span className="text-3xl">{subtitle}</span>}</p>
-      {range && <p className="text-sm text-slate-400 mt-1">{range}</p>}
+    <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-6 text-center shadow-[var(--shadow-soft)] transition-[background-color,border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-hover)]">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-[color:var(--muted)]">
+        {title}
+      </h3>
+      <p className={`text-5xl font-bold ${color}`}>
+        {value}
+        {subtitle && (
+          <span className="ml-1 text-2xl font-semibold text-[color:var(--muted)]">
+            {subtitle}
+          </span>
+        )}
+      </p>
+      {range && <p className="text-sm text-[color:var(--muted)]">{range}</p>}
       {warning && (
-        <p className="text-xs text-orange-500 mt-1">{warning}</p>
+        <p className="text-xs font-medium text-orange-500 dark:text-orange-400">
+          {warning}
+        </p>
       )}
-      {note && <p className="text-xs text-slate-400 mt-1">{note}</p>}
-      {description && <p className="text-sm text-slate-400 mt-1">{description}</p>}
+      {note && <p className="text-xs text-[color:var(--muted)]">{note}</p>}
+      {description && (
+        <p className="text-sm text-[color:var(--muted)]">{description}</p>
+      )}
     </div>
   );
 };

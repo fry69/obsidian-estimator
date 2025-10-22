@@ -1,5 +1,5 @@
-import React from 'react';
-import { Bar } from 'react-chartjs-2';
+import React from "react";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,7 +8,8 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
+} from "chart.js";
+import { useTheme } from "../hooks/useTheme";
 
 ChartJS.register(
   CategoryScale,
@@ -34,70 +35,93 @@ interface ChartDataType {
 
 interface TimelineChartProps {
   chartData: ChartDataType;
-  chartFilter: 'all' | 'plugin' | 'theme';
-  setChartFilter: (filter: 'all' | 'plugin' | 'theme') => void;
+  chartFilter: "all" | "plugin" | "theme";
+  setChartFilter: (filter: "all" | "plugin" | "theme") => void;
 }
 
-const TimelineChart: React.FC<TimelineChartProps> = ({ chartData, chartFilter, setChartFilter }) => {
+const buttonBase =
+  "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+const inactiveButtonClasses =
+  "border border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--foreground)] shadow-sm hover:border-[color:var(--border-strong)] hover:bg-[color:var(--surface-hover)]";
+const activeButtonClasses =
+  "border border-transparent bg-sky-500 text-white shadow-[0_20px_45px_-25px_rgba(56,189,248,0.7)]";
+
+const TimelineChart: React.FC<TimelineChartProps> = ({
+  chartData,
+  chartFilter,
+  setChartFilter,
+}) => {
+  const { theme } = useTheme();
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
       x: {
         stacked: true,
-        grid: { display: false }
+        grid: { display: false },
+        ticks: {
+          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+        },
       },
       y: {
         stacked: true,
         beginAtZero: true,
         ticks: {
-          stepSize: 1
-        }
-      }
+          stepSize: 1,
+          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+        },
+        grid: {
+          color: theme === "dark" ? "#334155" : "#e2e8f0",
+        },
+      },
     },
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: "top" as const,
+        labels: {
+          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+        },
       },
       tooltip: {
-        mode: 'index' as const,
+        mode: "index" as const,
         intersect: false,
-      }
-    }
+      },
+    },
   };
 
+  const renderButton = (label: string, type: "all" | "plugin" | "theme") => (
+    <button
+      key={type}
+      data-type={type}
+      type="button"
+      onClick={() => setChartFilter(type)}
+      className={`${buttonBase} ${
+        chartFilter === type ? activeButtonClasses : inactiveButtonClasses
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <section className="mb-10 bg-white p-6 rounded-xl shadow-lg">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-        <div className="text-center md:text-left">
-          <h2 className="text-2xl font-bold text-slate-800">Merged PRs Timeline</h2>
-          <p className="text-slate-500">Represents the number of plugins and themes approved per week.</p>
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-6 shadow-[var(--shadow-soft)] transition-[background-color,border-color,box-shadow] duration-300 sm:p-8">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-2 text-center md:text-left">
+          <h2 className="text-2xl font-semibold text-[color:var(--foreground)]">
+            Merged PRs Timeline
+          </h2>
+          <p className="text-sm text-[color:var(--muted)]">
+            Represents the number of plugins and themes approved per week.
+          </p>
         </div>
-        <div id="chart-filters" className="flex space-x-2 mt-4 md:mt-0" role="group">
-          <button
-            data-type="all"
-            className={`filter-btn px-4 py-2 rounded-md font-semibold shadow ${chartFilter === 'all' ? 'bg-sky-600 text-white' : 'bg-white text-slate-700'}`}
-            onClick={() => setChartFilter('all')}
-          >
-            All
-          </button>
-          <button
-            data-type="plugin"
-            className={`filter-btn px-4 py-2 rounded-md font-semibold shadow ${chartFilter === 'plugin' ? 'bg-sky-600 text-white' : 'bg-white text-slate-700'}`}
-            onClick={() => setChartFilter('plugin')}
-          >
-            Plugins
-          </button>
-          <button
-            data-type="theme"
-            className={`filter-btn px-4 py-2 rounded-md font-semibold shadow ${chartFilter === 'theme' ? 'bg-sky-600 text-white' : 'bg-white text-slate-700'}`}
-            onClick={() => setChartFilter('theme')}
-          >
-            Themes
-          </button>
+        <div id="chart-filters" className="flex flex-wrap gap-2" role="group">
+          {renderButton("All", "all")}
+          {renderButton("Plugins", "plugin")}
+          {renderButton("Themes", "theme")}
         </div>
       </div>
-      <div className="relative w-full max-w-[900px] mx-auto h-[400px] max-h-[50vh]">
+      <div className="relative mx-auto mt-8 h-[400px] max-h-[50vh] w-full max-w-[900px]">
         <Bar data={chartData} options={chartOptions} />
       </div>
     </section>
