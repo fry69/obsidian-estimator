@@ -9,6 +9,7 @@
 - remove unused assets
 - implement dark/light theme toggle
 - shorter card titles
+- add dependabot
 
 ## [0.1.1] - 2025-10-21
 
