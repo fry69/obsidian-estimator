@@ -97,7 +97,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({ chartData, chartFilter, s
           </button>
         </div>
       </div>
-      <div className="chart-container">
+      <div className="relative w-full max-w-[900px] mx-auto h-[400px] max-h-[50vh]">
         <Bar data={chartData} options={chartOptions} />
       </div>
     </section>

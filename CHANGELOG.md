@@ -4,7 +4,7 @@
 
 - add live demo link to README.md
 - center table headers
-
+- refactor centralized CSS into components
 
 ## [0.1.1] - 2025-10-21
 
