@@ -127,7 +127,7 @@ function App() {
               className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5"
             >
               <KpiCard
-                title="Estimated Plugin Wait"
+                title="Plugin Wait"
                 value={estimatedPluginWaitDays}
                 range={pluginWaitRange}
                 color="text-sky-500 dark:text-sky-400"
@@ -140,7 +140,7 @@ function App() {
                 description="Based on recent review velocity"
               />
               <KpiCard
-                title="Estimated Theme Wait"
+                title="Theme Wait"
                 value={estimatedThemeWaitDays}
                 range={themeWaitRange}
                 color="text-pink-500 dark:text-pink-400"
@@ -152,7 +152,7 @@ function App() {
                 description="Based on recent review velocity"
               />
               <KpiCard
-                title="Total Queue Size"
+                title="Total Queue"
                 value={readyForReviewPrs.length}
                 description='PRs "Ready for review"'
               />
