@@ -30,5 +30,8 @@ dist-ssr
 .env*
 !.env.example
 
+# playwright files
+.playwright-mcp/
+
 # Overrides
-!lib
+!src/lib
