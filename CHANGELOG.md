@@ -6,6 +6,7 @@
 - center table headers
 - refactor centralized CSS into components
 - fix git ignore
+- remove unused assets
 
 ## [0.1.1] - 2025-10-21
 
