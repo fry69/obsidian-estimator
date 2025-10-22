@@ -126,10 +126,10 @@ const QueueTable: React.FC<QueueTableProps> = ({ readyForReviewPrs, filterType, 
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('id')}>PR #{renderSortIndicator('id')}</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('type')}>Type{renderSortIndicator('type')}</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('title')}>Title{renderSortIndicator('title')}</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('createdAt')}>Submitted{renderSortIndicator('createdAt')}</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('id')}>PR #{renderSortIndicator('id')}</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('type')}>Type{renderSortIndicator('type')}</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('title')}>Title{renderSortIndicator('title')}</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('createdAt')}>Submitted{renderSortIndicator('createdAt')}</th>
             </tr>
           </thead>
           <tbody id="queue-table-body" className="bg-white divide-y divide-slate-200">
