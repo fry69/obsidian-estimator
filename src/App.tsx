@@ -8,25 +8,6 @@ import QueueTable from "./components/QueueTable";
 import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
 
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
-
 function App() {
   const { theme, toggleTheme } = useTheme();
   const [chartFilter, setChartFilter] = useState<"all" | "plugin" | "theme">(

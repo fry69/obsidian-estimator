@@ -10,6 +10,7 @@
 - implement dark/light theme toggle
 - shorter card titles
 - add dependabot
+- remove unused imports
 
 ## [0.1.1] - 2025-10-21
 
