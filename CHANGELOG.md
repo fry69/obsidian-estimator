@@ -11,6 +11,7 @@
 - shorter card titles
 - add dependabot
 - remove unused imports
+- add table filter
 
 ## [0.1.1] - 2025-10-21
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { PullRequest } from "../types";
 
 interface QueueTableProps {
@@ -9,6 +9,8 @@ interface QueueTableProps {
 
 type SortColumn = "id" | "type" | "title" | "createdAt";
 type SortDirection = "asc" | "desc";
+
+const FILTER_STORAGE_KEY = "queueTableFilter";
 
 const cleanTitle = (title: string) => {
   if (title.startsWith("Add plugin: ")) {
@@ -66,6 +68,37 @@ const QueueTable: React.FC<QueueTableProps> = ({
 }) => {
   const [sortColumn, setSortColumn] = useState<SortColumn>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [filterQuery, setFilterQuery] = useState<string>(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage.getItem(FILTER_STORAGE_KEY) ?? "";
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      if (filterQuery) {
+        window.localStorage.setItem(FILTER_STORAGE_KEY, filterQuery);
+      } else {
+        window.localStorage.removeItem(FILTER_STORAGE_KEY);
+      }
+    }
+  }, [filterQuery]);
+
+  const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFilterQuery(event.target.value);
+  };
+
+  const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      setFilterQuery("");
+    }
+  };
+
+  const clearFilterQuery = () => {
+    setFilterQuery("");
+  };
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -76,11 +109,38 @@ const QueueTable: React.FC<QueueTableProps> = ({
     }
   };
 
+  const isFiltered = filterQuery.trim().length > 0;
+
   const sortedAndFilteredPrs = useMemo(() => {
-    const sortablePrs = readyForReviewPrs.filter((pr) => {
-      if (filterType === "all") return true;
-      return pr.type === filterType;
+    const normalizedQuery = filterQuery.trim().toLowerCase();
+    const compactQuery = normalizedQuery.replace(/\s+/g, "");
+    const isNumericQuery = compactQuery.length > 0 && /^\d+$/.test(compactQuery);
+    const isTimeQuery =
+      compactQuery.length > 0 && /^\d+[a-z]+$/.test(compactQuery);
+
+    const filteredPrs = readyForReviewPrs.filter((pr) => {
+      if (filterType !== "all" && pr.type !== filterType) {
+        return false;
+      }
+
+      if (!compactQuery) {
+        return true;
+      }
+
+      if (isNumericQuery) {
+        return pr.id.toString().includes(compactQuery);
+      }
+
+      if (isTimeQuery) {
+        const prTimeAgo = formatTimeAgo(pr.createdAt).toLowerCase();
+        return prTimeAgo.includes(compactQuery);
+      }
+
+      const normalizedTitle = cleanTitle(pr.title).toLowerCase();
+      return normalizedTitle.includes(normalizedQuery);
     });
+
+    const sortablePrs = [...filteredPrs];
 
     sortablePrs.sort((a, b) => {
       let compareValue = 0;
@@ -97,7 +157,7 @@ const QueueTable: React.FC<QueueTableProps> = ({
       return sortDirection === "asc" ? compareValue : -compareValue;
     });
     return sortablePrs;
-  }, [readyForReviewPrs, filterType, sortColumn, sortDirection]);
+  }, [readyForReviewPrs, filterType, sortColumn, sortDirection, filterQuery]);
 
   const renderSortIndicator = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -130,6 +190,33 @@ const QueueTable: React.FC<QueueTableProps> = ({
           {renderButton("All", "all")}
           {renderButton("Plugins", "plugin")}
           {renderButton("Themes", "theme")}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-center">
+        <div className="relative w-full max-w-xl sm:max-w-md">
+          <input
+            id="queue-filter"
+            type="text"
+            value={filterQuery}
+            onChange={handleFilterChange}
+            onKeyDown={handleFilterKeyDown}
+            placeholder="Search by PR #, title, or time (e.g. 2d)"
+            className={`w-full rounded-full bg-[color:var(--surface)] px-4 py-2 pr-12 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted)] transition-[border-color,box-shadow] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-sky-200 dark:focus:ring-sky-500/40 ${
+              isFiltered
+                ? "border-2 border-[color:var(--accent)] shadow-[0_0_0_1px_rgba(56,189,248,0.25)] dark:shadow-[0_0_0_1px_rgba(56,189,248,0.3)]"
+                : "border border-[color:var(--border)]"
+            }`}
+          />
+          {filterQuery && (
+            <button
+              type="button"
+              onClick={clearFilterQuery}
+              className="absolute inset-y-0 right-3 inline-flex items-center justify-center rounded-full p-1 text-[color:var(--muted)] transition-colors hover:text-[color:var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]"
+              aria-label="Clear filter"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          )}
         </div>
       </div>
       <div className="mt-6 overflow-x-auto">
