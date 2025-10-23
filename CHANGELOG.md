@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- split worker
+
 ## [0.2.0] - 2025-10-23
 
 - add live demo link to README.md
