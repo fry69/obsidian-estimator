@@ -164,6 +164,26 @@ function App() {
 
           <footer className="border-t border-[color:var(--border-strong)] pt-6 text-center text-sm text-[color:var(--muted)]">
             All calculations are estimates. Not affiliated with Obsidian MD.
+            <br />© 2025{" "}
+            <a
+              href="https://bsky.app/profile/fry69.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[color:var(--text)]"
+            >
+              fry69
+            </a>
+            . Source on{" "}
+            <a
+              href="https://github.com/fry69/obsidian-estimator"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[color:var(--text)]"
+            >
+              GitHub
+            </a>
+            . Version: {import.meta.env.VITE_APP_VERSION} Build:{" "}
+            {import.meta.env.VITE_BUILD_ID}
           </footer>
         </div>
       </div>

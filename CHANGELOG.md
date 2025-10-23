@@ -4,6 +4,7 @@
 
 - split worker
 - add cache header
+- implement automatic updates via Service Worker
 
 ## [0.2.0] - 2025-10-23
 
