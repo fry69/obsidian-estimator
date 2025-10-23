@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - split worker
+- add cache header
 
 ## [0.2.0] - 2025-10-23
 
