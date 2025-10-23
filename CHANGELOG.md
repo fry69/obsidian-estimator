@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2025-10-23
 
 - split worker
 - add cache header
