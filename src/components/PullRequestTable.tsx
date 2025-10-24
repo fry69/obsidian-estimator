@@ -1,16 +1,23 @@
-import React, { useState, useMemo, useEffect } from "react";
-import type { PullRequest } from "../types";
+import React, { useEffect, useMemo, useState } from "react";
+import type { MergedPullRequest, PullRequest } from "../types";
 
-interface QueueTableProps {
-  readyForReviewPrs: PullRequest[];
-  filterType: "all" | "plugin" | "theme";
-  setFilterType: (filter: "all" | "plugin" | "theme") => void;
-}
-
-type SortColumn = "id" | "type" | "title" | "createdAt";
+type FilterType = "all" | "plugin" | "theme";
+type SortColumn = "id" | "type" | "title" | "date" | "days";
 type SortDirection = "asc" | "desc";
 
-const FILTER_STORAGE_KEY = "queueTableFilter";
+type PullRequestTableProps =
+  | {
+      variant: "queue";
+      prs: PullRequest[];
+      filterType: FilterType;
+      setFilterType: (filter: FilterType) => void;
+    }
+  | {
+      variant: "merged";
+      prs: MergedPullRequest[];
+      filterType: FilterType;
+      setFilterType: (filter: FilterType) => void;
+    };
 
 const cleanTitle = (title: string) => {
   if (title.startsWith("Add plugin: ")) {
@@ -22,7 +29,7 @@ const cleanTitle = (title: string) => {
   return title;
 };
 
-const formatTimeAgo = (dateString: string) => {
+const formatRelativeTime = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -61,16 +68,22 @@ const inactiveButtonClasses =
 const activeButtonClasses =
   "border border-transparent bg-sky-500 text-white shadow-[0_20px_45px_-25px_rgba(56,189,248,0.7)]";
 
-const QueueTable: React.FC<QueueTableProps> = ({
-  readyForReviewPrs,
-  filterType,
-  setFilterType,
-}) => {
-  const [sortColumn, setSortColumn] = useState<SortColumn>("id");
+const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
+  const { filterType, setFilterType, variant } = props;
+  const prs = props.prs;
+  const isMergedView = variant === "merged";
+  const filterStorageKey = isMergedView
+    ? "mergedTableFilter"
+    : "queueTableFilter";
+  const filterInputId = isMergedView ? "merged-filter" : "queue-filter";
+
+  const [sortColumn, setSortColumn] = useState<SortColumn>(() =>
+    isMergedView ? "date" : "id"
+  );
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [filterQuery, setFilterQuery] = useState<string>(() => {
     if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage.getItem(FILTER_STORAGE_KEY) ?? "";
+      return window.localStorage.getItem(filterStorageKey) ?? "";
     }
     return "";
   });
@@ -78,18 +91,20 @@ const QueueTable: React.FC<QueueTableProps> = ({
   useEffect(() => {
     if (typeof window !== "undefined" && window.localStorage) {
       if (filterQuery) {
-        window.localStorage.setItem(FILTER_STORAGE_KEY, filterQuery);
+        window.localStorage.setItem(filterStorageKey, filterQuery);
       } else {
-        window.localStorage.removeItem(FILTER_STORAGE_KEY);
+        window.localStorage.removeItem(filterStorageKey);
       }
     }
-  }, [filterQuery]);
+  }, [filterQuery, filterStorageKey]);
 
   const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFilterQuery(event.target.value);
   };
 
-  const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleFilterKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (event.key === "Escape") {
       event.stopPropagation();
       setFilterQuery("");
@@ -114,11 +129,12 @@ const QueueTable: React.FC<QueueTableProps> = ({
   const sortedAndFilteredPrs = useMemo(() => {
     const normalizedQuery = filterQuery.trim().toLowerCase();
     const compactQuery = normalizedQuery.replace(/\s+/g, "");
-    const isNumericQuery = compactQuery.length > 0 && /^\d+$/.test(compactQuery);
+    const isNumericQuery =
+      compactQuery.length > 0 && /^\d+$/.test(compactQuery);
     const isTimeQuery =
       compactQuery.length > 0 && /^\d+[a-z]+$/.test(compactQuery);
 
-    const filteredPrs = readyForReviewPrs.filter((pr) => {
+    const filteredPrs = prs.filter((pr) => {
       if (filterType !== "all" && pr.type !== filterType) {
         return false;
       }
@@ -132,7 +148,11 @@ const QueueTable: React.FC<QueueTableProps> = ({
       }
 
       if (isTimeQuery) {
-        const prTimeAgo = formatTimeAgo(pr.createdAt).toLowerCase();
+        const targetDate =
+          variant === "merged"
+            ? (pr as MergedPullRequest).mergedAt
+            : pr.createdAt;
+        const prTimeAgo = formatRelativeTime(targetDate).toLowerCase();
         return prTimeAgo.includes(compactQuery);
       }
 
@@ -150,14 +170,25 @@ const QueueTable: React.FC<QueueTableProps> = ({
         compareValue = a.type.localeCompare(b.type);
       } else if (sortColumn === "title") {
         compareValue = cleanTitle(a.title).localeCompare(cleanTitle(b.title));
-      } else if (sortColumn === "createdAt") {
+      } else if (sortColumn === "date") {
+        const aDate =
+          variant === "merged"
+            ? new Date((a as MergedPullRequest).mergedAt).getTime()
+            : new Date(a.createdAt).getTime();
+        const bDate =
+          variant === "merged"
+            ? new Date((b as MergedPullRequest).mergedAt).getTime()
+            : new Date(b.createdAt).getTime();
+        compareValue = aDate - bDate;
+      } else if (sortColumn === "days" && variant === "merged") {
         compareValue =
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          (a as MergedPullRequest).daysToMerge -
+          (b as MergedPullRequest).daysToMerge;
       }
       return sortDirection === "asc" ? compareValue : -compareValue;
     });
-    return sortablePrs;
-  }, [readyForReviewPrs, filterType, sortColumn, sortDirection, filterQuery]);
+    return sortablePrs as typeof prs;
+  }, [prs, filterType, sortColumn, sortDirection, filterQuery, variant]);
 
   const renderSortIndicator = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -166,7 +197,7 @@ const QueueTable: React.FC<QueueTableProps> = ({
     return "";
   };
 
-  const renderButton = (label: string, type: "all" | "plugin" | "theme") => (
+  const renderButton = (label: string, type: FilterType) => (
     <button
       key={type}
       data-type={type}
@@ -180,13 +211,30 @@ const QueueTable: React.FC<QueueTableProps> = ({
     </button>
   );
 
+  const heading = isMergedView
+    ? "Recently Merged Pull Requests"
+    : "Current Pull Request Queue";
+  const subheading = isMergedView
+    ? "Merged in the last 7 days"
+    : '"Ready for review"';
+  const emptyMessage = isMergedView
+    ? "No pull requests were merged in the last 7 days."
+    : "The queue is empty!";
+  const tableColumnCount = isMergedView ? 5 : 4;
+  const dateColumnLabel = isMergedView ? "Merged" : "Submitted";
+
   return (
     <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-6 shadow-[var(--shadow-soft)] transition-[background-color,border-color,box-shadow] duration-300 sm:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="text-2xl font-semibold text-[color:var(--foreground)]">
-          Current "Ready for review" Queue
+          {heading}
+          {subheading ? (
+            <span className="block text-sm font-normal text-[color:var(--muted)]">
+              {subheading}
+            </span>
+          ) : null}
         </h2>
-        <div id="queue-filters" className="flex flex-wrap gap-2" role="group">
+        <div className="flex flex-wrap gap-2" role="group">
           {renderButton("All", "all")}
           {renderButton("Plugins", "plugin")}
           {renderButton("Themes", "theme")}
@@ -195,7 +243,7 @@ const QueueTable: React.FC<QueueTableProps> = ({
       <div className="mt-4 flex justify-center">
         <div className="relative w-full max-w-xl sm:max-w-md">
           <input
-            id="queue-filter"
+            id={filterInputId}
             type="text"
             value={filterQuery}
             onChange={handleFilterChange}
@@ -247,20 +295,30 @@ const QueueTable: React.FC<QueueTableProps> = ({
               <th
                 scope="col"
                 className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                onClick={() => handleSort("createdAt")}
+                onClick={() => handleSort("date")}
               >
-                Submitted{renderSortIndicator("createdAt")}
+                {dateColumnLabel}
+                {renderSortIndicator("date")}
               </th>
+              {isMergedView ? (
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
+                  onClick={() => handleSort("days")}
+                >
+                  Days{renderSortIndicator("days")}
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--border)]">
             {sortedAndFilteredPrs.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={tableColumnCount}
                   className="px-6 py-8 text-center text-sm text-[color:var(--muted)]"
                 >
-                  The queue is empty!
+                  {emptyMessage}
                 </td>
               </tr>
             ) : (
@@ -284,7 +342,9 @@ const QueueTable: React.FC<QueueTableProps> = ({
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
                         pr.type === "plugin"
                           ? "bg-sky-500/10 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200"
-                          : "bg-pink-500/10 text-pink-700 dark:bg-pink-400/20 dark:text-pink-200"
+                          : pr.type === "theme"
+                          ? "bg-pink-500/10 text-pink-700 dark:bg-pink-400/20 dark:text-pink-200"
+                          : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
                       }`}
                     >
                       {pr.type}
@@ -296,8 +356,17 @@ const QueueTable: React.FC<QueueTableProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-[color:var(--muted)]">
-                    {formatTimeAgo(pr.createdAt)}
+                    {formatRelativeTime(
+                      isMergedView
+                        ? (pr as MergedPullRequest).mergedAt
+                        : pr.createdAt
+                    )}
                   </td>
+                  {isMergedView ? (
+                    <td className="px-6 py-4 text-sm text-[color:var(--muted)]">
+                      {(pr as MergedPullRequest).daysToMerge}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}
@@ -308,4 +377,4 @@ const QueueTable: React.FC<QueueTableProps> = ({
   );
 };
 
-export default QueueTable;
+export default PullRequestTable;

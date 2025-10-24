@@ -121,7 +121,9 @@ export async function handleScheduled(
   env: Env,
   _ctx: ExecutionContext
 ): Promise<void> {
-  console.debug(`[Scheduled] Cron trigger fired at ${controller.scheduledTime}`);
+  console.debug(
+    `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`
+  );
 
   const octokit = new Octokit({
     auth: env.GITHUB_TOKEN,
@@ -137,15 +139,18 @@ export async function handleScheduled(
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
   const mergedQueryDate = twelveMonthsAgo.toISOString().split("T")[0];
-  const mergedQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate}`;
+  const mergedPluginsQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:plugin`;
+  const mergedThemesQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:theme`;
 
   try {
-    const [openPlugins, openThemes, mergedPrs] = await Promise.all([
+    const [openPlugins, openThemes, mergedPlugins, mergedThemes] = await Promise.all([
       searchGitHubIssues(octokit, openPluginsQuery),
       searchGitHubIssues(octokit, openThemesQuery),
-      searchGitHubIssues(octokit, mergedQuery),
+      searchGitHubIssues(octokit, mergedPluginsQuery),
+      searchGitHubIssues(octokit, mergedThemesQuery),
     ]);
     const allOpenPrs = [...openPlugins, ...openThemes];
+    const mergedPrs = [...mergedPlugins, ...mergedThemes];
 
     await Promise.all([
       updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),

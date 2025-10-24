@@ -34,7 +34,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
           </span>
         )}
       </p>
-      {range && <p className="text-sm text-[color:var(--muted)]">{range}</p>}
+      <p className="h-[1rem] text-sm text-[color:var(--muted)]">{range}</p>
       {warning && (
         <p className="text-xs font-medium text-orange-500 dark:text-orange-400">
           {warning}

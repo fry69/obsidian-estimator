@@ -4,7 +4,7 @@ import type { MergedPullRequest, PullRequest } from "./types";
 import { calculateWaitTime, generateChartData } from "./lib/calculations";
 import KpiCard from "./components/KpiCard";
 import TimelineChart from "./components/TimelineChart";
-import QueueTable from "./components/QueueTable";
+import PullRequestTable from "./components/PullRequestTable";
 import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
 
@@ -16,6 +16,10 @@ function App() {
   const [queueFilter, setQueueFilter] = useState<"all" | "plugin" | "theme">(
     "all"
   );
+  const [mergedFilter, setMergedFilter] = useState<"all" | "plugin" | "theme">(
+    "all"
+  );
+  const [activeTable, setActiveTable] = useState<"queue" | "merged">("queue");
 
   const { data, isLoading, error } = useQuery<{
     openPrs: PullRequest[];
@@ -45,6 +49,19 @@ function App() {
     [readyForReviewPrs]
   );
 
+  const recentMergedPrs = useMemo(() => {
+    if (!mergedPrs) {
+      return [];
+    }
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const threshold = sevenDaysAgo.getTime();
+
+    return mergedPrs.filter(
+      (pr) => new Date(pr.mergedAt).getTime() >= threshold
+    );
+  }, [mergedPrs]);
+
   const {
     estimatedDays: estimatedPluginWaitDays,
     waitRange: pluginWaitRange,
@@ -64,6 +81,17 @@ function App() {
   const chartData = useMemo(() => {
     return generateChartData(mergedPrs || [], chartFilter);
   }, [mergedPrs, chartFilter]);
+
+  const tableTabs: Array<{ id: "queue" | "merged"; label: string }> = [
+    { id: "merged", label: "Merged (7d)" },
+    { id: "queue", label: "Ready for Review (full)" },
+  ];
+  const tabButtonBase =
+    "relative inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+  const tabActiveClasses =
+    "bg-sky-500 text-white shadow-[0_15px_35px_-20px_rgba(14,165,233,0.7)]";
+  const tabInactiveClasses =
+    "text-[color:var(--muted)] hover:text-[color:var(--foreground)]";
 
   if (isLoading) {
     return (
@@ -149,18 +177,55 @@ function App() {
               />
             </section>
 
-          <TimelineChart
-            chartData={chartData}
-            chartFilter={chartFilter}
-            setChartFilter={setChartFilter}
-            theme={theme}
-          />
-
-            <QueueTable
-              readyForReviewPrs={readyForReviewPrs}
-              filterType={queueFilter}
-              setFilterType={setQueueFilter}
+            <TimelineChart
+              chartData={chartData}
+              chartFilter={chartFilter}
+              setChartFilter={setChartFilter}
+              theme={theme}
             />
+
+            <section className="flex flex-col gap-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <nav
+                  aria-label="Table selection"
+                  className="inline-flex rounded-full border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-1 shadow-[var(--shadow-soft)]"
+                >
+                  {tableTabs.map((tab) => {
+                    const isActive = activeTable === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTable(tab.id)}
+                        className={`${tabButtonBase} ${
+                          isActive ? tabActiveClasses : tabInactiveClasses
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+              {activeTable === "queue" ? (
+                <PullRequestTable
+                  key="queue-table"
+                  variant="queue"
+                  prs={readyForReviewPrs}
+                  filterType={queueFilter}
+                  setFilterType={setQueueFilter}
+                />
+              ) : (
+                <PullRequestTable
+                  key="merged-table"
+                  variant="merged"
+                  prs={recentMergedPrs}
+                  filterType={mergedFilter}
+                  setFilterType={setMergedFilter}
+                />
+              )}
+            </section>
           </main>
 
           <footer className="border-t border-[color:var(--border-strong)] pt-6 text-center text-sm text-[color:var(--muted)]">
