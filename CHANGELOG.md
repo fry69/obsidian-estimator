@@ -7,6 +7,7 @@
 - add merged PR table
 - refine GitHub merge query
 - slight UI touchups
+- implement persistence hook
 
 ## [0.3.0] - 2025-10-23
 

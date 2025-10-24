@@ -1,14 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { usePersistentState } from "./usePersistentState";
 
 export type Theme = "light" | "dark";
 
-const getInitialTheme = (): Theme => {
-  if (typeof window !== "undefined" && window.localStorage) {
-    const storedTheme = window.localStorage.getItem("theme");
-    if (storedTheme === "light" || storedTheme === "dark") {
-      return storedTheme;
-    }
-
+const getPreferredTheme = (): Theme => {
+  if (typeof window !== "undefined") {
     const userMedia = window.matchMedia("(prefers-color-scheme: dark)");
     if (userMedia.matches) {
       return "dark";
@@ -17,10 +13,18 @@ const getInitialTheme = (): Theme => {
   return "light";
 };
 
-export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+const isThemeValue = (value: Theme) => value === "light" || value === "dark";
 
-  // Update theme when it changes
+export function useTheme() {
+  const [theme, setTheme] = usePersistentState<Theme>(
+    "theme",
+    getPreferredTheme(),
+    {
+      validate: isThemeValue,
+    }
+  );
+
+  // Update document theme class when it changes
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -30,7 +34,6 @@ export function useTheme() {
     const otherTheme = theme === "dark" ? "light" : "dark";
     root.classList.remove(otherTheme);
     root.classList.add(theme);
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {

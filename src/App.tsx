@@ -1,25 +1,55 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { MergedPullRequest, PullRequest } from "./types";
+import type {
+  MergedPullRequest,
+  PullRequest,
+  SubmissionFilter,
+} from "./types";
+import { isSubmissionFilter } from "./types";
 import { calculateWaitTime, generateChartData } from "./lib/calculations";
 import KpiCard from "./components/KpiCard";
 import TimelineChart from "./components/TimelineChart";
 import PullRequestTable from "./components/PullRequestTable";
 import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
+import { usePersistentState } from "./hooks/usePersistentState";
+
+type TableVariant = "queue" | "merged";
+
+const isTableVariant = (value: string): value is TableVariant => {
+  return value === "queue" || value === "merged";
+};
 
 function App() {
   const { theme, toggleTheme } = useTheme();
-  const [chartFilter, setChartFilter] = useState<"all" | "plugin" | "theme">(
-    "all"
+  const [chartFilter, setChartFilter] = usePersistentState<SubmissionFilter>(
+    "chartFilterType",
+    "all",
+    {
+      validate: isSubmissionFilter,
+    }
   );
-  const [queueFilter, setQueueFilter] = useState<"all" | "plugin" | "theme">(
-    "all"
+  const [queueFilter, setQueueFilter] = usePersistentState<SubmissionFilter>(
+    "queueTableFilterType",
+    "all",
+    {
+      validate: isSubmissionFilter,
+    }
   );
-  const [mergedFilter, setMergedFilter] = useState<"all" | "plugin" | "theme">(
-    "all"
+  const [mergedFilter, setMergedFilter] = usePersistentState<SubmissionFilter>(
+    "mergedTableFilterType",
+    "all",
+    {
+      validate: isSubmissionFilter,
+    }
   );
-  const [activeTable, setActiveTable] = useState<"queue" | "merged">("queue");
+  const [activeTable, setActiveTable] = usePersistentState<TableVariant>(
+    "activeTableVariant",
+    "queue",
+    {
+      validate: isTableVariant,
+    }
+  );
 
   const { data, isLoading, error } = useQuery<{
     openPrs: PullRequest[];
@@ -82,7 +112,7 @@ function App() {
     return generateChartData(mergedPrs || [], chartFilter);
   }, [mergedPrs, chartFilter]);
 
-  const tableTabs: Array<{ id: "queue" | "merged"; label: string }> = [
+  const tableTabs: Array<{ id: TableVariant; label: string }> = [
     { id: "merged", label: "Merged (7d)" },
     { id: "queue", label: "Ready for Review (full)" },
   ];

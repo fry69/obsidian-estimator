@@ -10,6 +10,7 @@ import {
   Legend,
 } from "chart.js";
 import type { Theme } from "../hooks/useTheme";
+import type { SubmissionFilter } from "../types";
 
 ChartJS.register(
   CategoryScale,
@@ -35,8 +36,8 @@ interface ChartDataType {
 
 interface TimelineChartProps {
   chartData: ChartDataType;
-  chartFilter: "all" | "plugin" | "theme";
-  setChartFilter: (filter: "all" | "plugin" | "theme") => void;
+  chartFilter: SubmissionFilter;
+  setChartFilter: (filter: SubmissionFilter) => void;
   theme: Theme;
 }
 
@@ -90,7 +91,7 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
     },
   };
 
-  const renderButton = (label: string, type: "all" | "plugin" | "theme") => (
+  const renderButton = (label: string, type: SubmissionFilter) => (
     <button
       key={type}
       data-type={type}

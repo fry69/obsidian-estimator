@@ -1,7 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
-import type { MergedPullRequest, PullRequest } from "../types";
+import React, { useMemo, useState } from "react";
+import type {
+  MergedPullRequest,
+  PullRequest,
+  SubmissionFilter,
+} from "../types";
+import { usePersistentState } from "../hooks/usePersistentState";
 
-type FilterType = "all" | "plugin" | "theme";
 type SortColumn = "id" | "type" | "title" | "date" | "days";
 type SortDirection = "asc" | "desc";
 
@@ -9,14 +13,14 @@ type PullRequestTableProps =
   | {
       variant: "queue";
       prs: PullRequest[];
-      filterType: FilterType;
-      setFilterType: (filter: FilterType) => void;
+      filterType: SubmissionFilter;
+      setFilterType: (filter: SubmissionFilter) => void;
     }
   | {
       variant: "merged";
       prs: MergedPullRequest[];
-      filterType: FilterType;
-      setFilterType: (filter: FilterType) => void;
+      filterType: SubmissionFilter;
+      setFilterType: (filter: SubmissionFilter) => void;
     };
 
 const cleanTitle = (title: string) => {
@@ -81,22 +85,10 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
     isMergedView ? "date" : "id"
   );
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [filterQuery, setFilterQuery] = useState<string>(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage.getItem(filterStorageKey) ?? "";
-    }
-    return "";
-  });
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      if (filterQuery) {
-        window.localStorage.setItem(filterStorageKey, filterQuery);
-      } else {
-        window.localStorage.removeItem(filterStorageKey);
-      }
-    }
-  }, [filterQuery, filterStorageKey]);
+  const [filterQuery, setFilterQuery] = usePersistentState<string>(
+    filterStorageKey,
+    ""
+  );
 
   const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFilterQuery(event.target.value);
@@ -197,7 +189,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
     return "";
   };
 
-  const renderButton = (label: string, type: FilterType) => (
+  const renderButton = (label: string, type: SubmissionFilter) => (
     <button
       key={type}
       data-type={type}
