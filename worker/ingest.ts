@@ -116,15 +116,7 @@ async function updateMergedPrsInDb(
   }
 }
 
-export async function handleScheduled(
-  controller: ScheduledController,
-  env: Env,
-  _ctx: ExecutionContext
-): Promise<void> {
-  console.debug(
-    `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`
-  );
-
+export async function ingest(env: Env): Promise<void> {
   const octokit = new Octokit({
     auth: env.GITHUB_TOKEN,
   });
@@ -132,7 +124,7 @@ export async function handleScheduled(
   const owner = "obsidianmd";
   const repo = "obsidian-releases";
 
-  console.debug("[Scheduled] Fetching open plugins and themes...");
+  console.debug("[Ingest] Fetching open plugins and themes...");
   const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
   const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
 
@@ -143,12 +135,13 @@ export async function handleScheduled(
   const mergedThemesQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:theme`;
 
   try {
-    const [openPlugins, openThemes, mergedPlugins, mergedThemes] = await Promise.all([
-      searchGitHubIssues(octokit, openPluginsQuery),
-      searchGitHubIssues(octokit, openThemesQuery),
-      searchGitHubIssues(octokit, mergedPluginsQuery),
-      searchGitHubIssues(octokit, mergedThemesQuery),
-    ]);
+    const [openPlugins, openThemes, mergedPlugins, mergedThemes] =
+      await Promise.all([
+        searchGitHubIssues(octokit, openPluginsQuery),
+        searchGitHubIssues(octokit, openThemesQuery),
+        searchGitHubIssues(octokit, mergedPluginsQuery),
+        searchGitHubIssues(octokit, mergedThemesQuery),
+      ]);
     const allOpenPrs = [...openPlugins, ...openThemes];
     const mergedPrs = [...mergedPlugins, ...mergedThemes];
 
@@ -156,10 +149,10 @@ export async function handleScheduled(
       updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
       updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
     ]);
-    console.debug("[Scheduled] Database update complete.");
+    console.debug("[Ingest] Database update complete.");
   } catch (error) {
     console.error(
-      "[Scheduled] Failed to fetch data from GitHub or update database:",
+      "[Ingest] Failed to fetch data from GitHub or update database:",
       error
     );
   }

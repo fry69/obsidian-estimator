@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { ingest } from "./ingest";
 
 const app = new Hono(); // Create Hono app instance
 
@@ -29,6 +30,29 @@ app.get("/api/data", async (c) => {
   } catch (error) {
     console.error("Error fetching data from D1:", error);
     return c.json({ error: "Failed to fetch data" }, { status: 500 });
+  }
+});
+
+app.post("/api/trigger", async (c) => {
+  const env = c.env as Env;
+  const authHeader = c.req.header("Authorization") || "";
+
+  if (!authHeader.startsWith("Bearer ")) {
+    return c.json({ error: "Missing bearer token" }, { status: 401 });
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim();
+
+  if (!token || token !== env.TRIGGER_TOKEN) {
+    return c.json({ error: "Invalid bearer token" }, { status: 403 });
+  }
+
+  try {
+    await ingest(env);
+    return c.json({ message: "Ingest triggered" }, { status: 202 });
+  } catch (error) {
+    console.error("Error triggering ingest:", error);
+    return c.json({ error: "Failed to trigger ingest" }, { status: 500 });
   }
 });
 

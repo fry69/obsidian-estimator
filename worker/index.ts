@@ -1,5 +1,5 @@
-import { handleScheduled } from "./scheduled";
-import { app  } from "./api";
+import { ingest } from "./ingest";
+import { app } from "./api";
 
 export default {
   async fetch(
@@ -10,5 +10,15 @@ export default {
     return app.fetch(request, env, ctx); // Use Hono app.fetch
   },
 
-  scheduled: handleScheduled,
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    _ctx: ExecutionContext
+  ): Promise<void> {
+    console.debug(
+      `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`
+    );
+
+    return await ingest(env);
+  },
 } satisfies ExportedHandler<Env>;

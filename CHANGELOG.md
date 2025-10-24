@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- implement trigger API endpoint
+
 ## [0.4.0] - 2025-10-24
 
 - remove unnecessary mount
