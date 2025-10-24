@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- remove unnecessary mount
+
 ## [0.3.0] - 2025-10-23
 
 - split worker
