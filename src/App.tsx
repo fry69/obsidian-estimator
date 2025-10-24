@@ -149,11 +149,12 @@ function App() {
               />
             </section>
 
-            <TimelineChart
-              chartData={chartData}
-              chartFilter={chartFilter}
-              setChartFilter={setChartFilter}
-            />
+          <TimelineChart
+            chartData={chartData}
+            chartFilter={chartFilter}
+            setChartFilter={setChartFilter}
+            theme={theme}
+          />
 
             <QueueTable
               readyForReviewPrs={readyForReviewPrs}

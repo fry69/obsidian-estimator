@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { useTheme } from "../hooks/useTheme";
+import type { Theme } from "../hooks/useTheme";
 
 ChartJS.register(
   CategoryScale,
@@ -37,6 +37,7 @@ interface TimelineChartProps {
   chartData: ChartDataType;
   chartFilter: "all" | "plugin" | "theme";
   setChartFilter: (filter: "all" | "plugin" | "theme") => void;
+  theme: Theme;
 }
 
 const buttonBase =
@@ -50,9 +51,8 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
   chartData,
   chartFilter,
   setChartFilter,
+  theme,
 }) => {
-  const { theme } = useTheme();
-
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,

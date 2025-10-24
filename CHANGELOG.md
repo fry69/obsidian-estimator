@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - remove unnecessary mount
+- fix timeline chart themeing issue
 
 ## [0.3.0] - 2025-10-23
 
