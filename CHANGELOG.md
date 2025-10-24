@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.0] - 2025-10-24
 
 - remove unnecessary mount
 - fix timeline chart themeing issue
