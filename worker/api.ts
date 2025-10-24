@@ -43,7 +43,7 @@ app.post("/api/trigger", async (c) => {
 
   const token = authHeader.slice("Bearer ".length).trim();
 
-  if (!token || token !== env.TRIGGER_TOKEN) {
+  if (!token || !env.TRIGGER_TOKEN || token !== env.TRIGGER_TOKEN) {
     return c.json({ error: "Invalid bearer token" }, { status: 403 });
   }
 
