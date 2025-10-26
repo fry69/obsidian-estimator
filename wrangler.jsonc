@@ -60,6 +60,9 @@
         "not_found_handling": "single-page-application",
       },
       "preview_urls": true,
+      "triggers": {
+        "crons": ["0 * * * *"],
+      },
     },
     "staging": {
       "name": "obsidian-estimator-staging",
@@ -75,9 +78,6 @@
         "not_found_handling": "single-page-application",
       },
       "preview_urls": true,
-      "triggers": {
-        "crons": ["0 * * * *"],
-      },
     },
   },
   /**

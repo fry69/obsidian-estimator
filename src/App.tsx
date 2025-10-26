@@ -9,6 +9,7 @@ import PullRequestTable from "./components/PullRequestTable";
 import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
 import { usePersistentState } from "./hooks/usePersistentState";
+import { fetchQueueData } from "./lib/fetchQueueData";
 
 type TableVariant = "queue" | "merged";
 
@@ -52,14 +53,9 @@ function App() {
     mergedPrs: MergedPullRequest[];
   }>({
     queryKey: ["prData"],
-    queryFn: async () => {
-      const response = await fetch("/api/data");
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-      return response.json();
-    },
+    queryFn: fetchQueueData,
     refetchInterval: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 30,
   });
 
   const openPrs = data?.openPrs;
