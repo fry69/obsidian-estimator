@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/inter-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Force Tailwind's built-in `dark:` variant to look for a `.dark` class instead of prefers-color-scheme */
 @custom-variant dark (&:is(.dark *));
 

@@ -6,6 +6,7 @@
 - add prettier
 - format codebase
 - replace Hono with URLpattern
+- inline Inter font
 
 ## [0.4.1] - 2025-10-24
 
