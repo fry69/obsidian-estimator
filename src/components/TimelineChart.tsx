@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
+import type { ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -54,13 +55,17 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
   setChartFilter,
   theme,
 }) => {
-  if (!chartData) {
-    return null;
-  }
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+  const chartOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 250,
+      animation: false,
+      responsiveAnimationDuration: 0,
+      interaction: {
+        mode: "index",
+        intersect: false,
+      },
     scales: {
       x: {
         stacked: true,
@@ -89,11 +94,17 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
         },
       },
       tooltip: {
-        mode: "index" as const,
+        mode: "index",
         intersect: false,
       },
     },
-  };
+  }),
+    [theme],
+  );
+
+  if (!chartData) {
+    return null;
+  }
 
   const renderButton = (label: string, type: SubmissionFilter) => (
     <button

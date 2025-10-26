@@ -19,9 +19,6 @@
       "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
     },
   ],
-  "triggers": {
-    "crons": ["0 * * * *"],
-  },
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -51,6 +48,19 @@
   },
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
   "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "obsidian_queue",
+          "database_name": "obsidian-queue",
+          "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+        },
+      ],
+      "assets": {
+        "not_found_handling": "single-page-application",
+      },
+      "preview_urls": true,
+    },
     "staging": {
       "name": "obsidian-estimator-staging",
       "workers_dev": true,
@@ -65,6 +75,9 @@
         "not_found_handling": "single-page-application",
       },
       "preview_urls": true,
+      "triggers": {
+        "crons": ["0 * * * *"],
+      },
     },
   },
   /**
