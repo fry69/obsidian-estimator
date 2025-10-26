@@ -1,4 +1,10 @@
 import { Octokit } from "@octokit/rest";
+import {
+  type QueueData,
+  type QueueMergedPullRequest,
+  type QueuePullRequest,
+  writeQueueData,
+} from "./queueStore";
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.
@@ -35,85 +41,52 @@ async function searchGitHubIssues(
   return results as GitHubPr[];
 }
 
-/**
- * Updates the open_prs table in the D1 database.
- * It first clears the table and then inserts the new set of open PRs.
- * @param db - The D1 database instance.
- * @param prs - An array of open PRs to insert.
- */
-async function updateOpenPrsInDb(
-  db: D1Database,
-  prs: GitHubPr[],
-): Promise<void> {
-  try {
-    await db.prepare("DELETE FROM open_prs").run();
-    if (prs.length === 0) {
-      return;
-    }
-
-    const stmt = db.prepare(
-      "INSERT INTO open_prs (id, title, url, type, createdAt) VALUES (?, ?, ?, ?, ?)",
-    );
-
-    const batch = prs.map((pr) => {
-      const typeLabel = pr.labels.find(
-        (label) => label.name === "plugin" || label.name === "theme",
-      );
-      const type = typeLabel ? typeLabel.name : "unknown";
-      return stmt.bind(pr.number, pr.title, pr.html_url, type, pr.created_at);
-    });
-
-    await db.batch(batch);
-  } catch (error) {
-    console.error("Error updating open_prs table:", error);
-  }
+function resolvePrType(pr: GitHubPr): string {
+  const typeLabel = pr.labels.find(
+    (label) => label.name === "plugin" || label.name === "theme",
+  );
+  return typeLabel ? typeLabel.name : "unknown";
 }
 
-/**
- * Updates the merged_prs table in the D1 database.
- * It first clears the table and then inserts the new set of merged PRs.
- * @param db - The D1 database instance.
- * @param prs - An array of merged PRs to insert.
- */
-async function updateMergedPrsInDb(
-  db: D1Database,
-  prs: GitHubPr[],
-): Promise<void> {
-  try {
-    await db.prepare("DELETE FROM merged_prs").run();
-    const prsToInsert = prs.filter(
-      (pr) => pr.pull_request && pr.pull_request.merged_at,
-    );
+function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
+  const mapped = prs.map<QueuePullRequest>((pr) => ({
+    id: pr.number,
+    title: pr.title,
+    url: pr.html_url,
+    type: resolvePrType(pr),
+    createdAt: pr.created_at,
+  }));
 
-    const stmt = db.prepare(
-      "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    );
+  return mapped.sort((a, b) => {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
 
-    const batch = prsToInsert.map((pr) => {
-      const typeLabel = pr.labels.find(
-        (label) => label.name === "plugin" || label.name === "theme",
-      );
-      const type = typeLabel ? typeLabel.name : "unknown";
+function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
+  const mapped = prs
+    .filter((pr) => pr.pull_request && pr.pull_request.merged_at)
+    .map<QueueMergedPullRequest>((pr) => {
       const createdAt = new Date(pr.created_at);
-      const mergedAt = new Date(pr.pull_request!.merged_at!); // Non-null assertion is safe due to filter
+      const mergedAtIso = pr.pull_request!.merged_at!;
+      const mergedAt = new Date(mergedAtIso);
       const daysToMerge = Math.round(
         (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
       );
-      return stmt.bind(
-        pr.number,
-        pr.title,
-        pr.html_url,
-        type,
-        pr.created_at,
-        pr.pull_request!.merged_at!,
+
+      return {
+        id: pr.number,
+        title: pr.title,
+        url: pr.html_url,
+        type: resolvePrType(pr),
+        createdAt: pr.created_at,
+        mergedAt: mergedAtIso,
         daysToMerge,
-      );
+      } satisfies QueueMergedPullRequest;
     });
 
-    await db.batch(batch);
-  } catch (error) {
-    console.error("Error updating merged_prs table:", error);
-  }
+  return mapped.sort((a, b) => {
+    return new Date(a.mergedAt).getTime() - new Date(b.mergedAt).getTime();
+  });
 }
 
 export async function ingest(env: Env): Promise<void> {
@@ -142,17 +115,16 @@ export async function ingest(env: Env): Promise<void> {
         searchGitHubIssues(octokit, mergedPluginsQuery),
         searchGitHubIssues(octokit, mergedThemesQuery),
       ]);
-    const allOpenPrs = [...openPlugins, ...openThemes];
-    const mergedPrs = [...mergedPlugins, ...mergedThemes];
+    const queueData: QueueData = {
+      openPrs: buildOpenPrPayload([...openPlugins, ...openThemes]),
+      mergedPrs: buildMergedPrPayload([...mergedPlugins, ...mergedThemes]),
+    };
 
-    await Promise.all([
-      updateOpenPrsInDb(env.obsidian_queue, allOpenPrs),
-      updateMergedPrsInDb(env.obsidian_queue, mergedPrs),
-    ]);
-    console.debug("[Ingest] Database update complete.");
+    await writeQueueData(env, queueData);
+    console.debug("[Ingest] KV update complete.");
   } catch (error) {
     console.error(
-      "[Ingest] Failed to fetch data from GitHub or update database:",
+      "[Ingest] Failed to fetch data from GitHub or update KV:",
       error,
     );
   }

@@ -66,39 +66,39 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
         mode: "index",
         intersect: false,
       },
-    scales: {
-      x: {
-        stacked: true,
-        grid: { display: false },
-        ticks: {
-          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: {
+            color: theme === "dark" ? "#cbd5e1" : "#64748b",
+          },
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            color: theme === "dark" ? "#cbd5e1" : "#64748b",
+          },
+          grid: {
+            color: theme === "dark" ? "#334155" : "#e2e8f0",
+          },
         },
       },
-      y: {
-        stacked: true,
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1,
-          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+      plugins: {
+        legend: {
+          position: "top" as const,
+          labels: {
+            color: theme === "dark" ? "#cbd5e1" : "#64748b",
+          },
         },
-        grid: {
-          color: theme === "dark" ? "#334155" : "#e2e8f0",
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          color: theme === "dark" ? "#cbd5e1" : "#64748b",
+        tooltip: {
+          mode: "index",
+          intersect: false,
         },
       },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-      },
-    },
-  }),
+    }),
     [theme],
   );
 

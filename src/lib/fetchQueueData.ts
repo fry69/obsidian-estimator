@@ -23,16 +23,5 @@ async function requestQueueData(): Promise<QueueData> {
 }
 
 export async function fetchQueueData(): Promise<QueueData> {
-  if (typeof window !== "undefined" && window.__PR_DATA_PROMISE__) {
-    const promise = window.__PR_DATA_PROMISE__;
-    // Don't reuse the same promise after the first consumer resolves it
-    delete window.__PR_DATA_PROMISE__;
-    const data = await promise;
-    if (data) {
-      return data;
-    }
-    // fall through to a fresh request if preloaded promise failed/null
-  }
-
   return requestQueueData();
 }

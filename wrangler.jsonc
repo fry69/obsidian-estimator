@@ -12,11 +12,11 @@
   "observability": {
     "enabled": true,
   },
-  "d1_databases": [
+  "kv_namespaces": [
     {
-      "binding": "obsidian_queue",
-      "database_name": "obsidian-queue",
-      "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+      "binding": "QUEUE_DATA",
+      "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
+      "preview_id": "a8f9a5262b374409b663688987a8203c",
     },
   ],
   /**
@@ -51,11 +51,11 @@
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
   "env": {
     "production": {
-      "d1_databases": [
+      "kv_namespaces": [
         {
-          "binding": "obsidian_queue",
-          "database_name": "obsidian-queue",
-          "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+          "binding": "QUEUE_DATA",
+          "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
+          "preview_id": "a8f9a5262b374409b663688987a8203c",
         },
       ],
       "assets": {
@@ -69,11 +69,11 @@
     "staging": {
       "name": "obsidian-estimator-staging",
       "workers_dev": true,
-      "d1_databases": [
+      "kv_namespaces": [
         {
-          "binding": "obsidian_queue",
-          "database_name": "obsidian-queue",
-          "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+          "binding": "QUEUE_DATA",
+          "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
+          "preview_id": "a8f9a5262b374409b663688987a8203c",
         },
       ],
       "assets": {

@@ -12,8 +12,8 @@ The frontend is built with **React**, **Vite**, and **Tailwind CSS**, using
 
 The backend is a **Cloudflare Worker** written in TypeScript that serves the
 frontend and provides a JSON API. The worker fetches data from the GitHub API,
-processes it, and stores it in a **Cloudflare D1** database. A cron trigger is
-configured to periodically update the data.
+processes it, and stores the resulting payload in **Cloudflare KV**. A cron
+trigger is configured to periodically update the data.
 
 ## Building and Running
 
@@ -51,19 +51,17 @@ Type checking can be performed with the build command:
 npm run build
 ```
 
-### Database
+### Data Storage
 
-The application uses Cloudflare D1 for its database. To create the database and
-apply the initial schema for local development, use the following `wrangler`
-commands:
+The application stores queue data in Cloudflare KV. To create the namespace for
+local development and production, run:
 
 ```bash
-# Create the D1 database (only needs to be done once)
-wrangler d1 create obsidian-queue
-
-# Apply the database schema
-wrangler d1 execute obsidian-queue --local --file=migrations/0000_initial_schema.sql
+wrangler kv namespace create obsidian-queue-data
+wrangler kv namespace create obsidian-queue-data-preview --preview
 ```
+
+Update the resulting IDs inside `wrangler.jsonc`.
 
 ### Building and Deployment
 
@@ -88,12 +86,11 @@ Cloudflare.
 - **Frontend:** The frontend code is located in the `src` directory. The main
   application component is `src/App.tsx`.
 - **Backend:** The backend Cloudflare Worker code is in `worker/index.ts`. This
-  file defines the API routes (`/api/queue`, `/api/history`) and the cron job
-  for fetching data from GitHub.
+  file defines the API routes (`/api/data`, `/api/trigger`) and the cron job for
+  fetching data from GitHub.
 - **Styling:** **Tailwind CSS** is used for styling. Configuration is in
   `tailwind.config.js`.
 - **API:** The backend exposes a JSON API. The routes are defined in
   `worker/index.ts` using the Hono framework.
-- **Database:** The database schema is defined in
-  `migrations/0000_initial_schema.sql`. Any changes to the database schema
-  should be done by creating a new migration file.
+- **Storage:** Queue data is cached as a JSON blob inside Cloudflare KV. The
+  ingest worker is responsible for computing the payload.
