@@ -1,13 +1,13 @@
 import { ingest } from "./ingest";
-import { app } from "./api";
+import { handleRequest } from "./api";
 
 export default {
   async fetch(
     request: Request,
     env: Env,
-    ctx: ExecutionContext,
+    _ctx: ExecutionContext,
   ): Promise<Response> {
-    return app.fetch(request, env, ctx); // Use Hono app.fetch
+    return handleRequest(request, env);
   },
 
   async scheduled(

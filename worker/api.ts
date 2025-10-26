@@ -1,10 +1,9 @@
-import { Hono } from "hono";
 import { ingest } from "./ingest";
 
-const app = new Hono(); // Create Hono app instance
+const dataRoute = new URLPattern({ pathname: "/api/data" });
+const triggerRoute = new URLPattern({ pathname: "/api/trigger" });
 
-app.get("/api/data", async (c) => {
-  const env = c.env as Env; // Cast c.env to Env
+async function fetchQueueData(env: Env): Promise<Response> {
   try {
     const [openPrs, mergedPrs] = await Promise.all([
       env.obsidian_queue
@@ -15,7 +14,7 @@ app.get("/api/data", async (c) => {
         .all(),
     ]);
 
-    return c.json(
+    return Response.json(
       {
         openPrs: openPrs.results,
         mergedPrs: mergedPrs.results,
@@ -29,40 +28,51 @@ app.get("/api/data", async (c) => {
     );
   } catch (error) {
     console.error("Error fetching data from D1:", error);
-    return c.json({ error: "Failed to fetch data" }, { status: 500 });
+    return Response.json({ error: "Failed to fetch data" }, { status: 500 });
   }
-});
+}
 
-app.post("/api/trigger", async (c) => {
-  const env = c.env as Env;
-  const authHeader = c.req.header("Authorization") || "";
+async function triggerIngest(request: Request, env: Env): Promise<Response> {
+  const authHeader = request.headers.get("Authorization") ?? "";
 
   if (!authHeader.startsWith("Bearer ")) {
-    return c.json({ error: "Missing bearer token" }, { status: 401 });
+    return Response.json({ error: "Missing bearer token" }, { status: 401 });
   }
 
   const token = authHeader.slice("Bearer ".length).trim();
 
   if (!token || !env.TRIGGER_TOKEN || token !== env.TRIGGER_TOKEN) {
-    return c.json({ error: "Invalid bearer token" }, { status: 403 });
+    return Response.json({ error: "Invalid bearer token" }, { status: 403 });
   }
 
   try {
     await ingest(env);
-    return c.json({ message: "Ingest triggered" }, { status: 202 });
+    return Response.json({ message: "Ingest triggered" }, { status: 202 });
   } catch (error) {
     console.error("Error triggering ingest:", error);
-    return c.json({ error: "Failed to trigger ingest" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to trigger ingest" },
+      { status: 500 },
+    );
   }
-});
+}
 
-app.all("/*", (c) => {
-  // Uncomment below to serve static assets if ASSETS binding is provided
-  // const env = c.env as Cloudflare.Env;
-  // if (env.ASSETS) {
-  //   return env.ASSETS.fetch(c.req.raw);
-  // }
-  return c.notFound();
-});
+export async function handleRequest(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const url = new URL(request.url);
 
-export { app };
+  if (request.method === "GET" && dataRoute.test(url)) {
+    return fetchQueueData(env);
+  }
+
+  if (request.method === "POST" && triggerRoute.test(url)) {
+    return triggerIngest(request, env);
+  }
+
+  return new Response("Not Found", {
+    status: 404,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
