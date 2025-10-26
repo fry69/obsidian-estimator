@@ -25,7 +25,6 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "noPropertyAccessFromIndexSignature": true
-
   },
   "include": ["vite.config.ts"]
 }

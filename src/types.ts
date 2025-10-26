@@ -16,7 +16,7 @@ const submissionFilters = ["all", "plugin", "theme"] as const;
 export type SubmissionFilter = (typeof submissionFilters)[number];
 
 export const isSubmissionFilter = (
-  value: string
+  value: string,
 ): value is SubmissionFilter => {
   return submissionFilters.includes(value as SubmissionFilter);
 };

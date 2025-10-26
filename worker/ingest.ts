@@ -26,7 +26,7 @@ interface GitHubPr {
  */
 async function searchGitHubIssues(
   octokit: Octokit,
-  q: string
+  q: string,
 ): Promise<GitHubPr[]> {
   const results = await octokit.paginate("GET /search/issues", {
     q,
@@ -43,7 +43,7 @@ async function searchGitHubIssues(
  */
 async function updateOpenPrsInDb(
   db: D1Database,
-  prs: GitHubPr[]
+  prs: GitHubPr[],
 ): Promise<void> {
   try {
     await db.prepare("DELETE FROM open_prs").run();
@@ -52,12 +52,12 @@ async function updateOpenPrsInDb(
     }
 
     const stmt = db.prepare(
-      "INSERT INTO open_prs (id, title, url, type, createdAt) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO open_prs (id, title, url, type, createdAt) VALUES (?, ?, ?, ?, ?)",
     );
 
     const batch = prs.map((pr) => {
       const typeLabel = pr.labels.find(
-        (label) => label.name === "plugin" || label.name === "theme"
+        (label) => label.name === "plugin" || label.name === "theme",
       );
       const type = typeLabel ? typeLabel.name : "unknown";
       return stmt.bind(pr.number, pr.title, pr.html_url, type, pr.created_at);
@@ -77,27 +77,27 @@ async function updateOpenPrsInDb(
  */
 async function updateMergedPrsInDb(
   db: D1Database,
-  prs: GitHubPr[]
+  prs: GitHubPr[],
 ): Promise<void> {
   try {
     await db.prepare("DELETE FROM merged_prs").run();
     const prsToInsert = prs.filter(
-      (pr) => pr.pull_request && pr.pull_request.merged_at
+      (pr) => pr.pull_request && pr.pull_request.merged_at,
     );
 
     const stmt = db.prepare(
-      "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO merged_prs (id, title, url, type, createdAt, mergedAt, daysToMerge) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
 
     const batch = prsToInsert.map((pr) => {
       const typeLabel = pr.labels.find(
-        (label) => label.name === "plugin" || label.name === "theme"
+        (label) => label.name === "plugin" || label.name === "theme",
       );
       const type = typeLabel ? typeLabel.name : "unknown";
       const createdAt = new Date(pr.created_at);
       const mergedAt = new Date(pr.pull_request!.merged_at!); // Non-null assertion is safe due to filter
       const daysToMerge = Math.round(
-        (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
+        (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
       );
       return stmt.bind(
         pr.number,
@@ -106,7 +106,7 @@ async function updateMergedPrsInDb(
         type,
         pr.created_at,
         pr.pull_request!.merged_at!,
-        daysToMerge
+        daysToMerge,
       );
     });
 
@@ -153,7 +153,7 @@ export async function ingest(env: Env): Promise<void> {
   } catch (error) {
     console.error(
       "[Ingest] Failed to fetch data from GitHub or update database:",
-      error
+      error,
     );
   }
 }

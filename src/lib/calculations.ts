@@ -20,11 +20,11 @@ const calculateStats = (prs: MergedPullRequest[]) => {
 
 export const calculateWaitTime = (
   history: MergedPullRequest[],
-  type: "plugin" | "theme"
+  type: "plugin" | "theme",
 ) => {
   const now = new Date();
   const twelveWeeksAgo = new Date(
-    now.getTime() - VELOCITY_WEEKS * 7 * 24 * 60 * 60 * 1000
+    now.getTime() - VELOCITY_WEEKS * 7 * 24 * 60 * 60 * 1000,
   );
 
   const recentMerged = history.filter((pr) => {
@@ -60,7 +60,7 @@ export const calculateWaitTime = (
 
 export const generateChartData = (
   mergedPrs: MergedPullRequest[],
-  filterType: "all" | "plugin" | "theme"
+  filterType: "all" | "plugin" | "theme",
 ) => {
   const weeklyData: { [key: string]: { plugins: number; themes: number } } = {};
   const now = new Date();
@@ -98,10 +98,10 @@ export const generateChartData = (
     new Date(week).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-    })
+    }),
   );
   const pluginCounts = sortedWeeks.map(
-    (week) => weeklyData[week]?.plugins || 0
+    (week) => weeklyData[week]?.plugins || 0,
   );
   const themeCounts = sortedWeeks.map((week) => weeklyData[week]?.themes || 0);
 

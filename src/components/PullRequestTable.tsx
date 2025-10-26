@@ -82,12 +82,12 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
   const filterInputId = isMergedView ? "merged-filter" : "queue-filter";
 
   const [sortColumn, setSortColumn] = useState<SortColumn>(() =>
-    isMergedView ? "date" : "id"
+    isMergedView ? "date" : "id",
   );
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [filterQuery, setFilterQuery] = usePersistentState<string>(
     filterStorageKey,
-    ""
+    "",
   );
 
   const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,7 +95,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
   };
 
   const handleFilterKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key === "Escape") {
       event.stopPropagation();
@@ -335,8 +335,8 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                         pr.type === "plugin"
                           ? "bg-sky-500/10 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200"
                           : pr.type === "theme"
-                          ? "bg-pink-500/10 text-pink-700 dark:bg-pink-400/20 dark:text-pink-200"
-                          : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
+                            ? "bg-pink-500/10 text-pink-700 dark:bg-pink-400/20 dark:text-pink-200"
+                            : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
                       }`}
                     >
                       {pr.type}
@@ -351,7 +351,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                     {formatRelativeTime(
                       isMergedView
                         ? (pr as MergedPullRequest).mergedAt
-                        : pr.createdAt
+                        : pr.createdAt,
                     )}
                   </td>
                   {isMergedView ? (

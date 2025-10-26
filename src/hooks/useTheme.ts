@@ -21,7 +21,7 @@ export function useTheme() {
     getPreferredTheme(),
     {
       validate: isThemeValue,
-    }
+    },
   );
 
   // Update document theme class when it changes

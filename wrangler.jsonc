@@ -10,17 +10,17 @@
   "workers_dev": true,
   "preview_urls": true,
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "d1_databases": [
     {
       "binding": "obsidian_queue",
       "database_name": "obsidian-queue",
-      "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8"
-    }
+      "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+    },
   ],
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": ["0 * * * *"],
   },
   /**
    * Smart Placement
@@ -47,8 +47,8 @@
    * https://developers.cloudflare.com/workers/static-assets/binding/
    */
   "assets": {
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+  },
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
   /**
    * Service Bindings (communicate between multiple Workers)

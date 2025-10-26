@@ -4,6 +4,7 @@
 
 - stricter type checking
 - add prettier
+- format codebase
 
 ## [0.4.1] - 2025-10-24
 

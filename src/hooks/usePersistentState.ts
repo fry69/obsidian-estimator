@@ -11,8 +11,8 @@ type UsePersistentStateOptions<T> = {
   validate?: (value: T) => boolean;
 };
 
-const defaultSerialize = <T,>(value: T) => JSON.stringify(value);
-const defaultDeserialize = <T,>(value: string) =>
+const defaultSerialize = <T>(value: T) => JSON.stringify(value);
+const defaultDeserialize = <T>(value: string) =>
   JSON.parse(value) as unknown as T;
 
 const isStorageAvailable = () => {
@@ -32,7 +32,7 @@ const isStorageAvailable = () => {
 export function usePersistentState<T>(
   key: string,
   defaultValue: T,
-  options: UsePersistentStateOptions<T> = {}
+  options: UsePersistentStateOptions<T> = {},
 ): [T, Dispatch<SetStateAction<T>>] {
   const {
     serialize = defaultSerialize,
@@ -84,7 +84,7 @@ export function usePersistentState<T>(
         return nextValue;
       });
     },
-    [key, serialize, storageAvailable]
+    [key, serialize, storageAvailable],
   );
 
   return [value, setPersistentValue];

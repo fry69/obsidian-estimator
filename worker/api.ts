@@ -25,7 +25,7 @@ app.get("/api/data", async (c) => {
           "Cache-Control":
             "private, max-age=1800, stale-while-revalidate=30, stale-if-error=86400",
         },
-      }
+      },
     );
   } catch (error) {
     console.error("Error fetching data from D1:", error);

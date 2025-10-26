@@ -5,7 +5,7 @@ export default {
   async fetch(
     request: Request,
     env: Env,
-    ctx: ExecutionContext
+    ctx: ExecutionContext,
   ): Promise<Response> {
     return app.fetch(request, env, ctx); // Use Hono app.fetch
   },
@@ -13,10 +13,10 @@ export default {
   async scheduled(
     controller: ScheduledController,
     env: Env,
-    _ctx: ExecutionContext
+    _ctx: ExecutionContext,
   ): Promise<void> {
     console.debug(
-      `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`
+      `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`,
     );
 
     return await ingest(env);

@@ -33,17 +33,20 @@ export default function SWUpdater() {
     const schedule = () => {
       if (stopped.current) return;
       const jitter = Math.floor((Math.random() - 0.5) * 2 * jitterMs);
-      timeoutId.current = setTimeout(() => {
-        const ric = window.requestIdleCallback as
-          | ((cb: () => void, opts?: { timeout?: number }) => number)
-          | undefined;
-        if (ric) {
-          ric(() => tick(), { timeout: 3000 });
-        } else {
-          // fallback if RIC not available
-          setTimeout(() => tick(), 0);
-        }
-      }, Math.max(0, delay + jitter));
+      timeoutId.current = setTimeout(
+        () => {
+          const ric = window.requestIdleCallback as
+            | ((cb: () => void, opts?: { timeout?: number }) => number)
+            | undefined;
+          if (ric) {
+            ric(() => tick(), { timeout: 3000 });
+          } else {
+            // fallback if RIC not available
+            setTimeout(() => tick(), 0);
+          }
+        },
+        Math.max(0, delay + jitter),
+      );
     };
 
     const tick = () => {
@@ -76,7 +79,7 @@ export default function SWUpdater() {
             Math.round(delay / 1000),
             "s",
             "-",
-            err instanceof Error ? err.message : String(err)
+            err instanceof Error ? err.message : String(err),
           );
         } finally {
           inFlight = false;

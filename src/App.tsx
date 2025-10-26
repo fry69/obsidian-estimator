@@ -23,28 +23,28 @@ function App() {
     "all",
     {
       validate: isSubmissionFilter,
-    }
+    },
   );
   const [queueFilter, setQueueFilter] = usePersistentState<SubmissionFilter>(
     "queueTableFilterType",
     "all",
     {
       validate: isSubmissionFilter,
-    }
+    },
   );
   const [mergedFilter, setMergedFilter] = usePersistentState<SubmissionFilter>(
     "mergedTableFilterType",
     "all",
     {
       validate: isSubmissionFilter,
-    }
+    },
   );
   const [activeTable, setActiveTable] = usePersistentState<TableVariant>(
     "activeTableVariant",
     "queue",
     {
       validate: isTableVariant,
-    }
+    },
   );
 
   const { data, isLoading, error } = useQuery<{
@@ -68,11 +68,11 @@ function App() {
   const readyForReviewPrs = useMemo(() => openPrs || [], [openPrs]);
   const readyPlugins = useMemo(
     () => readyForReviewPrs.filter((pr) => pr.type === "plugin"),
-    [readyForReviewPrs]
+    [readyForReviewPrs],
   );
   const readyThemes = useMemo(
     () => readyForReviewPrs.filter((pr) => pr.type === "theme"),
-    [readyForReviewPrs]
+    [readyForReviewPrs],
   );
 
   const recentMergedPrs = useMemo(() => {
@@ -84,7 +84,7 @@ function App() {
     const threshold = sevenDaysAgo.getTime();
 
     return mergedPrs.filter(
-      (pr) => new Date(pr.mergedAt).getTime() >= threshold
+      (pr) => new Date(pr.mergedAt).getTime() >= threshold,
     );
   }, [mergedPrs]);
 
