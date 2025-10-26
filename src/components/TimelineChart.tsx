@@ -54,6 +54,10 @@ const TimelineChart: React.FC<TimelineChartProps> = ({
   setChartFilter,
   theme,
 }) => {
+  if (!chartData) {
+    return null;
+  }
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,

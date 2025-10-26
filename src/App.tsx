@@ -1,10 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type {
-  MergedPullRequest,
-  PullRequest,
-  SubmissionFilter,
-} from "./types";
+import type { MergedPullRequest, PullRequest, SubmissionFilter } from "./types";
 import { isSubmissionFilter } from "./types";
 import { calculateWaitTime, generateChartData } from "./lib/calculations";
 import KpiCard from "./components/KpiCard";
@@ -173,7 +169,7 @@ function App() {
                 warning={
                   isPluginWaitHighVariance
                     ? "Estimates may be less reliable due to high variance."
-                    : undefined
+                    : ""
                 }
                 note="This is an estimate for new submissions and may be high due to the large queue size."
                 description="Based on recent review velocity"
@@ -186,7 +182,7 @@ function App() {
                 warning={
                   isThemeWaitHighVariance
                     ? "Estimates may be less reliable due to high variance."
-                    : undefined
+                    : ""
                 }
                 description="Based on recent review velocity"
               />
@@ -207,12 +203,14 @@ function App() {
               />
             </section>
 
-            <TimelineChart
-              chartData={chartData}
-              chartFilter={chartFilter}
-              setChartFilter={setChartFilter}
-              theme={theme}
-            />
+            {chartData !== undefined && (
+              <TimelineChart
+                chartData={chartData}
+                chartFilter={chartFilter}
+                setChartFilter={setChartFilter}
+                theme={theme}
+              />
+            )}
 
             <section className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -278,8 +276,8 @@ function App() {
             >
               GitHub
             </a>
-            . Version: {import.meta.env.VITE_APP_VERSION} Build:{" "}
-            {import.meta.env.VITE_BUILD_ID}
+            . Version: {import.meta.env["VITE_APP_VERSION"]} Build:{" "}
+            {import.meta.env["VITE_BUILD_ID"]}
           </footer>
         </div>
       </div>

@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- stricter type checking
+
 ## [0.4.1] - 2025-10-24
 
 - implement trigger API endpoint

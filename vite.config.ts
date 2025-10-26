@@ -9,12 +9,12 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import pkg from "./package.json" with { type: "json" };
 
 const CROCK32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"; // no I, L, O, U
-function crock32Tag(len = 5) {                      // 5 chars = 32⁵
+function crock32Tag(len = 5) {
+  // 5 chars = 32⁵
   let out = "";
   for (let i = 0; i < len; i++) out += CROCK32[randomInt(32)];
   return out;
 }
-
 
 function gitShort() {
   try {
@@ -24,16 +24,16 @@ function gitShort() {
   }
 }
 
-const BUILD_TAG      = crock32Tag(5);                             // e.g. "4GF7V"
-const BUILD_TIME_ISO = new Date().toISOString();               // e.g. 2025-10-23T12:34:56.789Z
-const BUILD_COMMIT   = gitShort();                             // e.g. a1b2c3d
-const BUILD_ID       = `${BUILD_COMMIT}-${BUILD_TAG}`;    // distinct per build
-const APP_VERSION    = pkg.version || "0.0.0";                 // from package.json
+const BUILD_TAG = crock32Tag(5); // e.g. "4GF7V"
+const BUILD_TIME_ISO = new Date().toISOString(); // e.g. 2025-10-23T12:34:56.789Z
+const BUILD_COMMIT = gitShort(); // e.g. a1b2c3d
+const BUILD_ID = `${BUILD_COMMIT}-${BUILD_TAG}`; // distinct per build
+const APP_VERSION = pkg.version || "0.0.0"; // from package.json
 
-process.env.VITE_BUILD_ID = BUILD_ID;
-process.env.VITE_BUILD_TIME = BUILD_TIME_ISO;
-process.env.VITE_BUILD_COMMIT = BUILD_COMMIT;
-process.env.VITE_APP_VERSION = APP_VERSION;
+process.env["VITE_BUILD_ID"] = BUILD_ID;
+process.env["VITE_BUILD_TIME"] = BUILD_TIME_ISO;
+process.env["VITE_BUILD_COMMIT"] = BUILD_COMMIT;
+process.env["VITE_APP_VERSION"] = APP_VERSION;
 
 // https://vite.dev/config/
 export default defineConfig({
