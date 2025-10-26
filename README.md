@@ -54,3 +54,18 @@ Cloudflare Vite plugin emits a staging-specific bundle/config before running
 Data is automatically updated via Cloudflare Cron Triggers, fetching information
 from the `obsidianmd/obsidian-releases` GitHub repository and writing the
 processed payload to KV. The API simply reads and returns this cached JSON.
+
+### Manual refresh endpoint
+
+You can force a refresh outside the cron schedule by calling the authenticated
+`/api/trigger` endpoint. Supply the same bearer token you configured in the
+`TRIGGER_TOKEN` secret:
+
+```bash
+curl -X POST "https://obsidian-estimator.fry69.workers.dev/api/trigger" \
+  -H "Authorization: Bearer $TRIGGER_TOKEN"
+```
+
+When developing locally, replace the hostname with the URL printed by
+`npm run dev` (often `http://127.0.0.1:8787`). A successful request returns HTTP
+202 while the ingest job runs in the background.
