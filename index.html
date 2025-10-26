@@ -8,18 +8,22 @@
   <body>
     <div id="root"></div>
     <script>
-      window.__PR_DATA_PROMISE__ = fetch("/api/data", {
-        credentials: "same-origin",
-        headers: { "Accept": "application/json" },
-      }).then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to preload queue data");
-        }
-        return response.json();
-      }).catch((error) => {
-        console.warn("[Preload] /api/data failed", error);
-        return null;
-      });
+      if (!window.__PR_DATA_PROMISE__) {
+        window.__PR_DATA_PROMISE__ = fetch("/api/data", {
+          credentials: "same-origin",
+          headers: { "Accept": "application/json" },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to preload queue data");
+            }
+            return response.json();
+          })
+          .catch((error) => {
+            console.warn("[Preload] /api/data failed", error);
+            return null;
+          });
+      }
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

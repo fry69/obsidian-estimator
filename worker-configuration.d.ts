@@ -9,6 +9,7 @@ declare namespace Cloudflare {
 		GITHUB_TOKEN: string;
 		TRIGGER_TOKEN: string;
 		obsidian_queue: D1Database;
+		ASSETS: Fetcher;
 	}
 }
 interface Env extends Cloudflare.Env {}

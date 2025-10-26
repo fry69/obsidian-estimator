@@ -6,6 +6,10 @@ declare global {
       openPrs: PullRequest[];
       mergedPrs: MergedPullRequest[];
     } | null>;
+    __INITIAL_QUEUE_DATA__?: {
+      openPrs: PullRequest[];
+      mergedPrs: MergedPullRequest[];
+    } | null;
   }
 }
 
