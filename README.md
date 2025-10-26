@@ -36,7 +36,15 @@ data ingestion from the GitHub API. Data is persisted in Cloudflare D1.
 4.  **GitHub Token:**
     - Create a GitHub Personal Access Token with `repo` scope.
     - Add as a Cloudflare secret: `wrangler secret put GITHUB_TOKEN`
-5.  **Deploy:** `wrangler deploy`
+5.  **Deploy:**
+    - Production: `npm run deploy`
+      (https://obsidian-estimator.fry69.workers.dev/)
+    - Staging: `npm run deploy:staging`
+      (https://obsidian-estimator-staging.fry69.workers.dev/)
+
+   The staging script sets `VITE_CLOUDFLARE_ENV=staging` during the build so the
+   Cloudflare Vite plugin emits a staging-specific bundle/config before running
+   `wrangler deploy`.
 
 ## Data Ingestion
 

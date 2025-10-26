@@ -13,7 +13,9 @@
     "cf-typegen": "wrangler types",
     "knip": "knip",
     "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:staging": "VITE_CLOUDFLARE_ENV=staging tsc -b && vite build --mode staging",
+    "deploy:staging": "VITE_CLOUDFLARE_ENV=staging npm run build:staging && wrangler deploy"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",

@@ -50,6 +50,23 @@
     "not_found_handling": "single-page-application",
   },
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
+  "env": {
+    "staging": {
+      "name": "obsidian-estimator-staging",
+      "workers_dev": true,
+      "d1_databases": [
+        {
+          "binding": "obsidian_queue",
+          "database_name": "obsidian-queue",
+          "database_id": "a5436ead-57a9-41b4-9977-42166e6796c8",
+        },
+      ],
+      "assets": {
+        "not_found_handling": "single-page-application",
+      },
+      "preview_urls": true,
+    },
+  },
   /**
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings

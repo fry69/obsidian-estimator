@@ -7,6 +7,7 @@
 - format codebase
 - replace Hono with URLpattern
 - inline Inter font
+- add staging deploy
 
 ## [0.4.1] - 2025-10-24
 
