@@ -15,8 +15,9 @@
       (() => {
         const storageKey = "theme";
         const root = document.documentElement;
-        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")
-          .matches;
+        const prefersDark = window.matchMedia?.(
+          "(prefers-color-scheme: dark)",
+        ).matches;
         let storedTheme = null;
 
         try {
@@ -28,11 +29,12 @@
           console.warn("[Theme] Failed to read stored theme", error);
         }
 
-        const theme = storedTheme === "dark" || storedTheme === "light"
-          ? storedTheme
-          : prefersDark
-            ? "dark"
-            : "light";
+        const theme =
+          storedTheme === "dark" || storedTheme === "light"
+            ? storedTheme
+            : prefersDark
+              ? "dark"
+              : "light";
 
         const fallbackBackground = "#020617";
 
