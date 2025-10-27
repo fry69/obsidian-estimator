@@ -1,11 +1,13 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { VirtualItem } from "@tanstack/react-virtual";
 import type {
   MergedPullRequest,
   PullRequest,
   SubmissionFilter,
 } from "../types";
 import { usePersistentState } from "../hooks/usePersistentState";
+import { useRelativeTime } from "../hooks/useRelativeTime";
 
 type SortColumn = "id" | "type" | "title" | "date" | "days";
 type SortDirection = "asc" | "desc";
@@ -34,36 +36,30 @@ const cleanTitle = (title: string) => {
   return title;
 };
 
-const formatRelativeTime = (dateString: string) => {
+const formatRelativeToken = (dateString: string) => {
   const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
 
-  let interval = seconds / 31536000; // years
-  if (interval > 1) {
-    return Math.floor(interval) + "y";
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  const units: Array<[number, string]> = [
+    [31536000, "y"],
+    [2592000, "mo"],
+    [604800, "w"],
+    [86400, "d"],
+    [3600, "h"],
+    [60, "m"],
+  ];
+
+  for (const [unitSeconds, suffix] of units) {
+    const value = Math.floor(seconds / unitSeconds);
+    if (value >= 1) {
+      return `${value}${suffix}`;
+    }
   }
-  interval = seconds / 2592000; // months
-  if (interval > 1) {
-    return Math.floor(interval) + "mo";
-  }
-  interval = seconds / 604800; // weeks
-  if (interval > 1) {
-    return Math.floor(interval) + "w";
-  }
-  interval = seconds / 86400; // days
-  if (interval > 1) {
-    return Math.floor(interval) + "d";
-  }
-  interval = seconds / 3600; // hours
-  if (interval > 1) {
-    return Math.floor(interval) + "h";
-  }
-  interval = seconds / 60; // minutes
-  if (interval > 1) {
-    return Math.floor(interval) + "m";
-  }
-  return Math.floor(seconds) + "s";
+
+  return `${Math.max(seconds, 0)}s`;
 };
 
 const buttonBase =
@@ -145,7 +141,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
           variant === "merged"
             ? (pr as MergedPullRequest).mergedAt
             : pr.createdAt;
-        const prTimeAgo = formatRelativeTime(targetDate).toLowerCase();
+        const prTimeAgo = formatRelativeToken(targetDate).toLowerCase();
         return prTimeAgo.includes(compactQuery);
       }
 
@@ -338,75 +334,17 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                   const mergedPr = isMergedView
                     ? (pr as MergedPullRequest)
                     : null;
+
                   return (
-                    <div
-                      role="row"
+                    <VirtualizedRow
                       key={virtualRow.key}
-                      ref={rowVirtualizer.measureElement}
-                      data-index={virtualRow.index}
-                      className="grid items-center gap-3 px-6 py-4 transition-[background-color] duration-150 hover:bg-[color:var(--surface-hover)]"
-                      style={{
-                        gridTemplateColumns,
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                    >
-                      <div
-                        role="cell"
-                        className="text-sm font-semibold text-[color:var(--foreground)]"
-                      >
-                        <a
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="link-plugin"
-                        >
-                          #{pr.id}
-                        </a>
-                      </div>
-                      <div role="cell" className="text-sm">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                            pr.type === "plugin"
-                              ? "badge-plugin"
-                              : pr.type === "theme"
-                                ? "badge-theme"
-                                : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
-                          }`}
-                        >
-                          {pr.type}
-                        </span>
-                      </div>
-                      <div
-                        role="cell"
-                        className="text-sm text-[color:var(--muted)]"
-                      >
-                        <span className="block max-w-[320px] truncate">
-                          {cleanTitle(pr.title)}
-                        </span>
-                      </div>
-                      <div
-                        role="cell"
-                        className="text-sm text-[color:var(--muted)]"
-                      >
-                        {formatRelativeTime(
-                          isMergedView && mergedPr
-                            ? mergedPr.mergedAt
-                            : pr.createdAt,
-                        )}
-                      </div>
-                      {isMergedView ? (
-                        <div
-                          role="cell"
-                          className="text-sm text-[color:var(--muted)]"
-                        >
-                          {mergedPr?.daysToMerge ?? ""}
-                        </div>
-                      ) : null}
-                    </div>
+                      virtualRow={virtualRow}
+                      pr={pr}
+                      mergedPr={mergedPr}
+                      isMergedView={isMergedView}
+                      gridTemplateColumns={gridTemplateColumns}
+                      measureElement={rowVirtualizer.measureElement}
+                    />
                   );
                 })}
               </div>
@@ -419,3 +357,79 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
 };
 
 export default PullRequestTable;
+
+interface VirtualRowProps {
+  virtualRow: VirtualItem;
+  pr: PullRequest;
+  mergedPr: MergedPullRequest | null;
+  isMergedView: boolean;
+  gridTemplateColumns: string;
+  measureElement: (el: HTMLElement | null) => void;
+}
+
+const VirtualizedRow: React.FC<VirtualRowProps> = ({
+  virtualRow,
+  pr,
+  mergedPr,
+  isMergedView,
+  gridTemplateColumns,
+  measureElement,
+}) => {
+  const relativeTime = useRelativeTime(
+    isMergedView && mergedPr ? mergedPr.mergedAt : pr.createdAt,
+  );
+
+  const badgeClasses =
+    pr.type === "plugin"
+      ? "badge-plugin"
+      : pr.type === "theme"
+        ? "badge-theme"
+        : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200";
+
+  return (
+    <div
+      role="row"
+      ref={measureElement}
+      data-index={virtualRow.index}
+      className="grid items-center gap-3 px-6 py-4 transition-[background-color] duration-150 hover:bg-[color:var(--surface-hover)]"
+      style={{
+        gridTemplateColumns,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: `${virtualRow.size}px`,
+        transform: `translateY(${virtualRow.start}px)`,
+      }}
+    >
+      <div role="cell" className="text-sm font-semibold text-[color:var(--foreground)]">
+        <a
+          href={pr.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="link-plugin"
+        >
+          #{pr.id}
+        </a>
+      </div>
+      <div role="cell" className="text-sm">
+        <span
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${badgeClasses}`}
+        >
+          {pr.type}
+        </span>
+      </div>
+      <div role="cell" className="text-sm text-[color:var(--muted)]">
+        <span className="block max-w-[320px] truncate">{cleanTitle(pr.title)}</span>
+      </div>
+      <div role="cell" className="text-sm text-[color:var(--muted)]">
+        {relativeTime}
+      </div>
+      {isMergedView ? (
+        <div role="cell" className="text-sm text-[color:var(--muted)]">
+          {mergedPr?.daysToMerge ?? ""}
+        </div>
+      ) : null}
+    </div>
+  );
+};

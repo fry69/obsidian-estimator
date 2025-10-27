@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+- prevent FOUC on load/refresh
+- fix text contrast issues for accessibility
+- use virtual table
+- remove theme pre-load script
+- move computation to ingest worker
+- split API into summary and details
+- autoupdate relative timestamps
+
 ## [0.5.0] - 2025-10-26
 
 - stricter type checking
@@ -9,12 +19,6 @@
 - inline Inter font
 - add staging deploy
 - replace D1 with KV
-- prevent FOUC on load/refresh
-- fix text contrast issues for accessibility
-- use virtual table
-- remove theme pre-load script
-- move computation to ingest worker
-- split API into summary and details
 
 ## [0.4.1] - 2025-10-24
 
