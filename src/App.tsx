@@ -181,9 +181,7 @@ function App() {
 
   if (summaryError) {
     const message =
-      summaryError instanceof Error
-        ? summaryError.message
-        : "Unknown error";
+      summaryError instanceof Error ? summaryError.message : "Unknown error";
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] text-red-500 transition-[background-color,color] duration-300">
         Error fetching data: {message}
@@ -299,7 +297,8 @@ function App() {
                 </nav>
               </div>
               <div className="text-sm text-[color:var(--muted)]">
-                Last updated: {summary?.detailsUpdatedAt
+                Last updated:{" "}
+                {summary?.detailsUpdatedAt
                   ? new Date(summary.detailsUpdatedAt).toLocaleString()
                   : "–"}
               </div>

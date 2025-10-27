@@ -69,10 +69,7 @@ export function buildWeeklyMergedSummary(
   mergedPrs: QueueMergedPullRequest[],
   weeks: number = 12,
 ): WeeklyMergedSummary {
-  const weeklyBuckets: Record<
-    string,
-    { plugins: number; themes: number }
-  > = {};
+  const weeklyBuckets: Record<string, { plugins: number; themes: number }> = {};
 
   const now = new Date();
   const cutoff = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);

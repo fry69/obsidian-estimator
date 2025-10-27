@@ -8,10 +8,7 @@ import {
   writeQueueDetails,
   writeQueueSummary,
 } from "./queueStore";
-import {
-  buildWeeklyMergedSummary,
-  computeWaitEstimate,
-} from "./metrics";
+import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.

@@ -55,8 +55,8 @@ Data is automatically updated via Cloudflare Cron Triggers, fetching information
 from the `obsidianmd/obsidian-releases` GitHub repository. Each run computes two
 KV entries:
 
-- a lightweight summary containing wait-time estimates, queue counts, and
-  weekly merge statistics (`/api/summary`)
+- a lightweight summary containing wait-time estimates, queue counts, and weekly
+  merge statistics (`/api/summary`)
 - the full PR details blob used by the tables (`/api/details`), which is only
   rewritten when the upstream data actually changes
 

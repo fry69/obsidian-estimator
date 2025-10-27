@@ -50,9 +50,7 @@ export interface QueueSummary {
   weeklyMerged: WeeklyMergedSummary;
 }
 
-export async function readQueueDetails(
-  env: Env,
-): Promise<QueueDetails | null> {
+export async function readQueueDetails(env: Env): Promise<QueueDetails | null> {
   return env.QUEUE_DATA.get<QueueDetails>(QUEUE_DETAILS_KEY, {
     type: "json",
   });
@@ -65,9 +63,7 @@ export async function writeQueueDetails(
   await env.QUEUE_DATA.put(QUEUE_DETAILS_KEY, JSON.stringify(data));
 }
 
-export async function readQueueSummary(
-  env: Env,
-): Promise<QueueSummary | null> {
+export async function readQueueSummary(env: Env): Promise<QueueSummary | null> {
   return env.QUEUE_DATA.get<QueueSummary>(QUEUE_SUMMARY_KEY, {
     type: "json",
   });

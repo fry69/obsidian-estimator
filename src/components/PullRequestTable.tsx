@@ -281,7 +281,12 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
         </div>
       </div>
       <div className="mt-6 overflow-x-auto">
-        <div className="min-w-full" role="table" aria-label={heading} aria-rowcount={sortedAndFilteredPrs.length}>
+        <div
+          className="min-w-full"
+          role="table"
+          aria-label={heading}
+          aria-rowcount={sortedAndFilteredPrs.length}
+        >
           <div role="rowgroup">
             <div
               role="row"
@@ -348,7 +353,10 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div role="cell" className="text-sm font-semibold text-[color:var(--foreground)]">
+                      <div
+                        role="cell"
+                        className="text-sm font-semibold text-[color:var(--foreground)]"
+                      >
                         <a
                           href={pr.url}
                           target="_blank"
@@ -371,18 +379,29 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                           {pr.type}
                         </span>
                       </div>
-                      <div role="cell" className="text-sm text-[color:var(--muted)]">
+                      <div
+                        role="cell"
+                        className="text-sm text-[color:var(--muted)]"
+                      >
                         <span className="block max-w-[320px] truncate">
                           {cleanTitle(pr.title)}
                         </span>
                       </div>
-                      <div role="cell" className="text-sm text-[color:var(--muted)]">
+                      <div
+                        role="cell"
+                        className="text-sm text-[color:var(--muted)]"
+                      >
                         {formatRelativeTime(
-                          isMergedView && mergedPr ? mergedPr.mergedAt : pr.createdAt,
+                          isMergedView && mergedPr
+                            ? mergedPr.mergedAt
+                            : pr.createdAt,
                         )}
                       </div>
                       {isMergedView ? (
-                        <div role="cell" className="text-sm text-[color:var(--muted)]">
+                        <div
+                          role="cell"
+                          className="text-sm text-[color:var(--muted)]"
+                        >
                           {mergedPr?.daysToMerge ?? ""}
                         </div>
                       ) : null}
