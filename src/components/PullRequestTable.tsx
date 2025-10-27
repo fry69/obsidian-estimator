@@ -335,7 +335,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                   return (
                     <div
                       role="row"
-                      key={pr.id}
+                      key={virtualRow.key}
                       ref={rowVirtualizer.measureElement}
                       data-index={virtualRow.index}
                       className="grid items-center gap-3 px-6 py-4 transition-[background-color] duration-150 hover:bg-[color:var(--surface-hover)]"

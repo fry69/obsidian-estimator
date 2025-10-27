@@ -1,10 +1,17 @@
 import { Octokit } from "@octokit/rest";
 import {
-  type QueueData,
+  type QueueDetails,
   type QueueMergedPullRequest,
   type QueuePullRequest,
-  writeQueueData,
+  type QueueSummary,
+  readQueueSummary,
+  writeQueueDetails,
+  writeQueueSummary,
 } from "./queueStore";
+import {
+  buildWeeklyMergedSummary,
+  computeWaitEstimate,
+} from "./metrics";
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.
@@ -89,6 +96,14 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
   });
 }
 
+async function hashString(value: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  const bytes = Array.from(new Uint8Array(digest));
+  return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function ingest(env: Env): Promise<void> {
   const octokit = new Octokit({
     auth: env.GITHUB_TOKEN,
@@ -115,13 +130,57 @@ export async function ingest(env: Env): Promise<void> {
         searchGitHubIssues(octokit, mergedPluginsQuery),
         searchGitHubIssues(octokit, mergedThemesQuery),
       ]);
-    const queueData: QueueData = {
+    const queueDetails: QueueDetails = {
       openPrs: buildOpenPrPayload([...openPlugins, ...openThemes]),
       mergedPrs: buildMergedPrPayload([...mergedPlugins, ...mergedThemes]),
     };
 
-    await writeQueueData(env, queueData);
-    console.debug("[Ingest] KV update complete.");
+    const detailsJson = JSON.stringify(queueDetails);
+    const detailsVersion = await hashString(detailsJson);
+    const nowIso = new Date().toISOString();
+
+    const previousSummary = await readQueueSummary(env);
+    let detailsUpdatedAt = previousSummary?.detailsUpdatedAt ?? nowIso;
+
+    if (!previousSummary || previousSummary.detailsVersion !== detailsVersion) {
+      await writeQueueDetails(env, queueDetails);
+      detailsUpdatedAt = nowIso;
+      console.debug(`[Ingest] Details updated (version ${detailsVersion})`);
+    } else {
+      console.debug("[Ingest] No changes detected, details update skipped.");
+    }
+
+    const totals = queueDetails.openPrs.reduce(
+      (acc, pr) => {
+        acc.readyTotal += 1;
+        if (pr.type === "plugin") {
+          acc.readyPlugins += 1;
+        } else if (pr.type === "theme") {
+          acc.readyThemes += 1;
+        }
+        return acc;
+      },
+      { readyTotal: 0, readyPlugins: 0, readyThemes: 0 },
+    );
+
+    const waitEstimates = {
+      plugin: computeWaitEstimate(queueDetails.mergedPrs, "plugin"),
+      theme: computeWaitEstimate(queueDetails.mergedPrs, "theme"),
+    };
+
+    const weeklyMerged = buildWeeklyMergedSummary(queueDetails.mergedPrs);
+
+    const summary: QueueSummary = {
+      checkedAt: nowIso,
+      detailsVersion,
+      detailsUpdatedAt,
+      totals,
+      waitEstimates,
+      weeklyMerged,
+    };
+
+    await writeQueueSummary(env, summary);
+    console.debug("[Ingest] Summary update complete.");
   } catch (error) {
     console.error(
       "[Ingest] Failed to fetch data from GitHub or update KV:",

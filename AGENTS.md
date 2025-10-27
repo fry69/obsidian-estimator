@@ -86,11 +86,13 @@ Cloudflare.
 - **Frontend:** The frontend code is located in the `src` directory. The main
   application component is `src/App.tsx`.
 - **Backend:** The backend Cloudflare Worker code is in `worker/index.ts`. This
-  file defines the API routes (`/api/data`, `/api/trigger`) and the cron job for
-  fetching data from GitHub.
+  file defines the API routes (`/api/summary`, `/api/details`, `/api/trigger`)
+  and the cron job for fetching data from GitHub.
 - **Styling:** **Tailwind CSS** is used for styling. Configuration is in
   `tailwind.config.js`.
 - **API:** The backend exposes a JSON API. The routes are defined in
   `worker/index.ts` using the Hono framework.
-- **Storage:** Queue data is cached as a JSON blob inside Cloudflare KV. The
-  ingest worker is responsible for computing the payload.
+- **Storage:** Queue state is saved in Cloudflare KV as two keys: a lightweight
+  summary (totals, wait estimates, chart data, version metadata) and the full
+  PR details blob. The ingest worker computes both and only rewrites the large
+  details payload when GitHub data changes.

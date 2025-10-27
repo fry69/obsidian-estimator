@@ -52,8 +52,17 @@ Cloudflare Vite plugin emits a staging-specific bundle/config before running
 ## Data Ingestion
 
 Data is automatically updated via Cloudflare Cron Triggers, fetching information
-from the `obsidianmd/obsidian-releases` GitHub repository and writing the
-processed payload to KV. The API simply reads and returns this cached JSON.
+from the `obsidianmd/obsidian-releases` GitHub repository. Each run computes two
+KV entries:
+
+- a lightweight summary containing wait-time estimates, queue counts, and
+  weekly merge statistics (`/api/summary`)
+- the full PR details blob used by the tables (`/api/details`), which is only
+  rewritten when the upstream data actually changes
+
+The frontend polls the summary key and only requests the detailed payload when a
+new version is available, keeping the initial load fast even when the queue is
+large.
 
 ### Manual refresh endpoint
 

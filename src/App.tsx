@@ -1,15 +1,20 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { MergedPullRequest, PullRequest, SubmissionFilter } from "./types";
+import type {
+  QueueDetailsResponse,
+  QueueSummary,
+  SubmissionFilter,
+  WaitEstimateSummary,
+} from "./types";
 import { isSubmissionFilter } from "./types";
-import { calculateWaitTime, generateChartData } from "./lib/calculations";
 import KpiCard from "./components/KpiCard";
 import TimelineChart from "./components/TimelineChart";
 import PullRequestTable from "./components/PullRequestTable";
 import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
 import { usePersistentState } from "./hooks/usePersistentState";
-import { fetchQueueData } from "./lib/fetchQueueData";
+import { fetchQueueSummary } from "./lib/fetchQueueSummary";
+import { fetchQueueDetails } from "./lib/fetchQueueDetails";
 
 type TableVariant = "queue" | "merged";
 
@@ -48,33 +53,43 @@ function App() {
     },
   );
 
-  const { data, isLoading, error } = useQuery<{
-    openPrs: PullRequest[];
-    mergedPrs: MergedPullRequest[];
-  }>({
-    queryKey: ["prData"],
-    queryFn: fetchQueueData,
-    refetchInterval: 1000 * 60 * 30, // 30 minutes
+  const {
+    data: summary,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+  } = useQuery<QueueSummary>({
+    queryKey: ["queue-summary"],
+    queryFn: fetchQueueSummary,
+    refetchInterval: 1000 * 60 * 30,
     staleTime: 1000 * 60 * 30,
   });
 
-  const openPrs = data?.openPrs;
-  const mergedPrs = data?.mergedPrs;
+  const detailsVersion = summary?.detailsVersion ?? null;
 
-  const readyForReviewPrs = useMemo(() => openPrs || [], [openPrs]);
-  const readyPlugins = useMemo(
-    () => readyForReviewPrs.filter((pr) => pr.type === "plugin"),
-    [readyForReviewPrs],
-  );
-  const readyThemes = useMemo(
-    () => readyForReviewPrs.filter((pr) => pr.type === "theme"),
-    [readyForReviewPrs],
-  );
+  const {
+    data: details,
+    isPending: isDetailsPending,
+    error: detailsError,
+  } = useQuery<QueueDetailsResponse>({
+    queryKey: ["queue-details", detailsVersion],
+    queryFn: () => fetchQueueDetails(detailsVersion ?? undefined),
+    enabled: Boolean(detailsVersion),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+
+  const openPrs = details?.openPrs ?? [];
+  const mergedPrs = details?.mergedPrs ?? [];
+
+  const detailsErrorMessage =
+    detailsError instanceof Error
+      ? detailsError.message
+      : detailsError
+        ? "Unknown error"
+        : null;
 
   const recentMergedPrs = useMemo(() => {
-    if (!mergedPrs) {
-      return [];
-    }
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const threshold = sevenDaysAgo.getTime();
@@ -84,25 +99,66 @@ function App() {
     );
   }, [mergedPrs]);
 
-  const {
-    estimatedDays: estimatedPluginWaitDays,
-    waitRange: pluginWaitRange,
-    isHighVariance: isPluginWaitHighVariance,
-  } = useMemo(() => {
-    return calculateWaitTime(mergedPrs || [], "plugin");
-  }, [mergedPrs]);
+  const formatWaitValue = (estimate?: WaitEstimateSummary) => {
+    if (!estimate) {
+      return "–";
+    }
+    return estimate.estimatedDays ?? "∞";
+  };
 
-  const {
-    estimatedDays: estimatedThemeWaitDays,
-    waitRange: themeWaitRange,
-    isHighVariance: isThemeWaitHighVariance,
-  } = useMemo(() => {
-    return calculateWaitTime(mergedPrs || [], "theme");
-  }, [mergedPrs]);
+  const formatWaitRange = (estimate?: WaitEstimateSummary) => {
+    if (!estimate) {
+      return "";
+    }
+    const { lower, upper } = estimate.range;
+    if (lower === null || upper === null) {
+      return "";
+    }
+    return `(${lower}–${upper} days)`;
+  };
 
   const chartData = useMemo(() => {
-    return generateChartData(mergedPrs || [], chartFilter);
-  }, [mergedPrs, chartFilter]);
+    if (!summary || summary.weeklyMerged.weekStarts.length === 0) {
+      return undefined;
+    }
+
+    const labels = summary.weeklyMerged.weekStarts.map((week) =>
+      new Date(week).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+    );
+
+    const datasets: Array<{
+      label: string;
+      data: number[];
+      backgroundColor: string;
+      borderColor: string;
+      borderWidth: number;
+    }> = [];
+
+    if (chartFilter === "all" || chartFilter === "plugin") {
+      datasets.push({
+        label: "Plugins Merged",
+        data: summary.weeklyMerged.pluginCounts,
+        backgroundColor: "rgb(2, 132, 199)",
+        borderColor: "rgb(2, 132, 199)",
+        borderWidth: 1,
+      });
+    }
+
+    if (chartFilter === "all" || chartFilter === "theme") {
+      datasets.push({
+        label: "Themes Merged",
+        data: summary.weeklyMerged.themeCounts,
+        backgroundColor: "rgb(219, 39, 119)",
+        borderColor: "rgb(219, 39, 119)",
+        borderWidth: 1,
+      });
+    }
+
+    return { labels, datasets };
+  }, [summary, chartFilter]);
 
   const tableTabs: Array<{ id: TableVariant; label: string }> = [
     { id: "merged", label: "Merged (7d)" },
@@ -115,7 +171,7 @@ function App() {
   const tabInactiveClasses =
     "text-[color:var(--muted)] hover:text-[color:var(--foreground)]";
 
-  if (isLoading) {
+  if (isSummaryLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] text-[color:var(--muted)] transition-[background-color,color] duration-300">
         Loading data...
@@ -123,13 +179,20 @@ function App() {
     );
   }
 
-  if (error) {
+  if (summaryError) {
+    const message =
+      summaryError instanceof Error
+        ? summaryError.message
+        : "Unknown error";
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] text-red-500 transition-[background-color,color] duration-300">
-        Error fetching data: {error.message}
+        Error fetching data: {message}
       </div>
     );
   }
+
+  const pluginEstimate = summary?.waitEstimates.plugin;
+  const themeEstimate = summary?.waitEstimates.theme;
 
   return (
     <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] transition-[background-color,color] duration-300">
@@ -162,11 +225,11 @@ function App() {
             >
               <KpiCard
                 title="Plugin Wait"
-                value={estimatedPluginWaitDays}
-                range={pluginWaitRange}
+                value={formatWaitValue(pluginEstimate)}
+                range={formatWaitRange(pluginEstimate)}
                 color="text-plugin-accent"
                 warning={
-                  isPluginWaitHighVariance
+                  pluginEstimate?.isHighVariance
                     ? "Estimates may be less reliable due to high variance."
                     : ""
                 }
@@ -175,11 +238,11 @@ function App() {
               />
               <KpiCard
                 title="Theme Wait"
-                value={estimatedThemeWaitDays}
-                range={themeWaitRange}
+                value={formatWaitValue(themeEstimate)}
+                range={formatWaitRange(themeEstimate)}
                 color="text-theme-accent"
                 warning={
-                  isThemeWaitHighVariance
+                  themeEstimate?.isHighVariance
                     ? "Estimates may be less reliable due to high variance."
                     : ""
                 }
@@ -187,17 +250,17 @@ function App() {
               />
               <KpiCard
                 title="Total Queue"
-                value={readyForReviewPrs.length}
+                value={summary?.totals.readyTotal ?? "–"}
                 description='PRs "Ready for review"'
               />
               <KpiCard
                 title="Plugin Queue"
-                value={readyPlugins.length}
+                value={summary?.totals.readyPlugins ?? "–"}
                 description='"plugin" &amp; "Ready for review"'
               />
               <KpiCard
                 title="Theme Queue"
-                value={readyThemes.length}
+                value={summary?.totals.readyThemes ?? "–"}
                 description='"theme" & "Ready for review"'
               />
             </section>
@@ -235,11 +298,24 @@ function App() {
                   })}
                 </nav>
               </div>
-              {activeTable === "queue" ? (
+              <div className="text-sm text-[color:var(--muted)]">
+                Last updated: {summary?.detailsUpdatedAt
+                  ? new Date(summary.detailsUpdatedAt).toLocaleString()
+                  : "–"}
+              </div>
+              {isDetailsPending ? (
+                <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--muted)]">
+                  Loading detailed pull requests…
+                </div>
+              ) : detailsErrorMessage ? (
+                <div className="rounded-2xl border border-red-400/40 bg-red-400/10 px-4 py-6 text-sm text-red-300">
+                  Failed to load detailed pull requests: {detailsErrorMessage}
+                </div>
+              ) : activeTable === "queue" ? (
                 <PullRequestTable
                   key="queue-table"
                   variant="queue"
-                  prs={readyForReviewPrs}
+                  prs={openPrs}
                   filterType={queueFilter}
                   setFilterType={setQueueFilter}
                 />

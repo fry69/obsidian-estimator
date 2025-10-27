@@ -1,7 +1,8 @@
 import { ingest } from "./ingest";
-import { readQueueData } from "./queueStore";
+import { readQueueDetails, readQueueSummary } from "./queueStore";
 
-const dataRoute = new URLPattern({ pathname: "/api/data" });
+const summaryRoute = new URLPattern({ pathname: "/api/summary" });
+const detailsRoute = new URLPattern({ pathname: "/api/details" });
 const triggerRoute = new URLPattern({ pathname: "/api/trigger" });
 
 const CACHE_HEADERS = {
@@ -9,19 +10,48 @@ const CACHE_HEADERS = {
     "private, max-age=1800, stale-while-revalidate=30, stale-if-error=86400",
 };
 
-async function respondWithQueueJson(env: Env): Promise<Response> {
+async function respondWithSummaryJson(env: Env): Promise<Response> {
   try {
-    const payload = await readQueueData(env);
+    const payload = await readQueueSummary(env);
     if (!payload) {
       return Response.json(
-        { error: "Queue data not yet available" },
+        { error: "Summary not yet available" },
         { status: 503 },
       );
     }
     return Response.json(payload, { headers: CACHE_HEADERS });
   } catch (error) {
-    console.error("Error fetching data from KV:", error);
+    console.error("Error fetching summary from KV:", error);
     return Response.json({ error: "Failed to fetch data" }, { status: 500 });
+  }
+}
+
+async function respondWithDetailsJson(env: Env): Promise<Response> {
+  try {
+    const [summary, details] = await Promise.all([
+      readQueueSummary(env),
+      readQueueDetails(env),
+    ]);
+
+    if (!details) {
+      return Response.json(
+        { error: "Details not yet available" },
+        { status: 503 },
+      );
+    }
+
+    return Response.json(
+      {
+        version: summary?.detailsVersion ?? null,
+        updatedAt: summary?.detailsUpdatedAt ?? null,
+        openPrs: details.openPrs,
+        mergedPrs: details.mergedPrs,
+      },
+      { headers: CACHE_HEADERS },
+    );
+  } catch (error) {
+    console.error("Error fetching details from KV:", error);
+    return Response.json({ error: "Failed to fetch details" }, { status: 500 });
   }
 }
 
@@ -56,8 +86,12 @@ export async function handleRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
 
-  if (request.method === "GET" && dataRoute.test(url)) {
-    return respondWithQueueJson(env);
+  if (request.method === "GET" && summaryRoute.test(url)) {
+    return respondWithSummaryJson(env);
+  }
+
+  if (request.method === "GET" && detailsRoute.test(url)) {
+    return respondWithDetailsJson(env);
   }
 
   if (request.method === "POST" && triggerRoute.test(url)) {
