@@ -184,6 +184,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
   }, [prs, filterType, sortColumn, sortDirection, filterQuery, variant]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: sortedAndFilteredPrs.length,
     getScrollElement: () => scrollContainerRef.current,

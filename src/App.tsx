@@ -79,8 +79,8 @@ function App() {
     refetchOnWindowFocus: false,
   });
 
-  const openPrs = details?.openPrs ?? [];
-  const mergedPrs = details?.mergedPrs ?? [];
+  const openPrs = useMemo(() => details?.openPrs ?? [], [details]);
+  const mergedPrs = useMemo(() => details?.mergedPrs ?? [], [details]);
 
   const detailsErrorMessage =
     detailsError instanceof Error

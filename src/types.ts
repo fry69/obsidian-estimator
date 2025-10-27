@@ -20,12 +20,6 @@ export interface WaitEstimateSummary {
   isHighVariance: boolean;
 }
 
-export interface WeeklyMergedSummary {
-  weekStarts: string[];
-  pluginCounts: number[];
-  themeCounts: number[];
-}
-
 export interface QueueSummary {
   checkedAt: string;
   detailsVersion: string;
@@ -39,7 +33,11 @@ export interface QueueSummary {
     plugin: WaitEstimateSummary;
     theme: WaitEstimateSummary;
   };
-  weeklyMerged: WeeklyMergedSummary;
+  weeklyMerged: {
+    weekStarts: string[];
+    pluginCounts: number[];
+    themeCounts: number[];
+  };
 }
 
 export interface QueueDetailsResponse {
