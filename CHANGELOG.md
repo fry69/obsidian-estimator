@@ -9,6 +9,7 @@
 - move computation to ingest worker
 - split API into summary and details
 - autoupdate relative timestamps
+- add OpenGraph metadata
 
 ## [0.5.0] - 2025-10-26
 
