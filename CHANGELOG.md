@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2025-10-27
 
 - prevent FOUC on load/refresh
 - fix text contrast issues for accessibility
