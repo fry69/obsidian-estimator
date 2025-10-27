@@ -34,6 +34,20 @@ export function useTheme() {
     const otherTheme = theme === "dark" ? "light" : "dark";
     root.classList.remove(otherTheme);
     root.classList.add(theme);
+    root.classList.add("theme-ready");
+    root.style.colorScheme = theme;
+
+    const background = window
+      .getComputedStyle(root)
+      .getPropertyValue("--background")
+      .trim();
+
+    if (background) {
+      root.style.backgroundColor = background;
+      if (window.document.body) {
+        window.document.body.style.backgroundColor = background;
+      }
+    }
   }, [theme]);
 
   const toggleTheme = () => {
