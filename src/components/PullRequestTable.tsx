@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   MergedPullRequest,
   PullRequest,
@@ -182,6 +183,15 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
     return sortablePrs as typeof prs;
   }, [prs, filterType, sortColumn, sortDirection, filterQuery, variant]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: sortedAndFilteredPrs.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 68,
+    overscan: 12,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
   const renderSortIndicator = (column: SortColumn) => {
     if (sortColumn === column) {
       return sortDirection === "asc" ? " ▲" : " ▼";
@@ -212,8 +222,19 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
   const emptyMessage = isMergedView
     ? "No pull requests were merged in the last 7 days."
     : "The queue is empty!";
-  const tableColumnCount = isMergedView ? 5 : 4;
   const dateColumnLabel = isMergedView ? "Merged" : "Submitted";
+  const gridTemplateColumns = isMergedView
+    ? "minmax(90px,120px) minmax(90px,120px) minmax(220px,1fr) minmax(120px,140px) minmax(60px,100px)"
+    : "minmax(90px,120px) minmax(90px,120px) minmax(220px,1fr) minmax(120px,140px)";
+  const headerCells: Array<{ key: SortColumn; label: string }> = [
+    { key: "id", label: "PR #" },
+    { key: "type", label: "Type" },
+    { key: "title", label: "Title" },
+    { key: "date", label: dateColumnLabel },
+  ];
+  if (isMergedView) {
+    headerCells.push({ key: "days", label: "Days" });
+  }
 
   return (
     <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-6 shadow-[var(--shadow-soft)] transition-[background-color,border-color,box-shadow] duration-300 sm:p-8">
@@ -260,110 +281,118 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
         </div>
       </div>
       <div className="mt-6 overflow-x-auto">
-        <table className="min-w-full divide-y divide-[color:var(--border)] text-left">
-          <thead className="bg-[color:var(--surface)]">
-            <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                onClick={() => handleSort("id")}
-              >
-                PR #{renderSortIndicator("id")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                onClick={() => handleSort("type")}
-              >
-                Type{renderSortIndicator("type")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                onClick={() => handleSort("title")}
-              >
-                Title{renderSortIndicator("title")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                onClick={() => handleSort("date")}
-              >
-                {dateColumnLabel}
-                {renderSortIndicator("date")}
-              </th>
-              {isMergedView ? (
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
-                  onClick={() => handleSort("days")}
-                >
-                  Days{renderSortIndicator("days")}
-                </th>
-              ) : null}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[color:var(--border)]">
+        <div className="min-w-full" role="table" aria-label={heading} aria-rowcount={sortedAndFilteredPrs.length}>
+          <div role="rowgroup">
+            <div
+              role="row"
+              className="grid items-center gap-3 bg-[color:var(--surface)] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]"
+              style={{ gridTemplateColumns }}
+            >
+              {headerCells.map(({ key, label }) => {
+                const ariaSort =
+                  sortColumn === key
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none";
+                return (
+                  <div key={key} role="columnheader" aria-sort={ariaSort}>
+                    <button
+                      type="button"
+                      onClick={() => handleSort(key)}
+                      className="flex items-center gap-1 text-left uppercase tracking-wide text-[color:var(--muted)] transition-colors hover:text-[color:var(--foreground)]"
+                    >
+                      <span>{label}</span>
+                      <span aria-hidden="true">{renderSortIndicator(key)}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div
+            ref={scrollContainerRef}
+            role="presentation"
+            className="max-h-[28rem] overflow-y-auto border-t border-[color:var(--border)]"
+          >
             {sortedAndFilteredPrs.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={tableColumnCount}
-                  className="px-6 py-8 text-center text-sm text-[color:var(--muted)]"
-                >
-                  {emptyMessage}
-                </td>
-              </tr>
+              <div className="px-6 py-8 text-center text-sm text-[color:var(--muted)]">
+                {emptyMessage}
+              </div>
             ) : (
-              sortedAndFilteredPrs.map((pr) => (
-                <tr
-                  key={pr.id}
-                  className="transition-colors duration-200 hover:bg-[color:var(--surface-hover)]"
-                >
-                  <td className="px-6 py-4 text-sm font-semibold text-[color:var(--foreground)]">
-                    <a
-                      href={pr.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="link-plugin"
+              <div
+                role="rowgroup"
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  position: "relative",
+                }}
+              >
+                {virtualItems.map((virtualRow) => {
+                  const pr = sortedAndFilteredPrs[virtualRow.index]!;
+                  const mergedPr = isMergedView
+                    ? (pr as MergedPullRequest)
+                    : null;
+                  return (
+                    <div
+                      role="row"
+                      key={pr.id}
+                      ref={rowVirtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      className="grid items-center gap-3 px-6 py-4 transition-[background-color] duration-150 hover:bg-[color:var(--surface-hover)]"
+                      style={{
+                        gridTemplateColumns,
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
                     >
-                      #{pr.id}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                        pr.type === "plugin"
-                          ? "badge-plugin"
-                          : pr.type === "theme"
-                            ? "badge-theme"
-                            : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
-                      }`}
-                    >
-                      {pr.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[color:var(--muted)]">
-                    <span className="block max-w-[320px] truncate">
-                      {cleanTitle(pr.title)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[color:var(--muted)]">
-                    {formatRelativeTime(
-                      isMergedView
-                        ? (pr as MergedPullRequest).mergedAt
-                        : pr.createdAt,
-                    )}
-                  </td>
-                  {isMergedView ? (
-                    <td className="px-6 py-4 text-sm text-[color:var(--muted)]">
-                      {(pr as MergedPullRequest).daysToMerge}
-                    </td>
-                  ) : null}
-                </tr>
-              ))
+                      <div role="cell" className="text-sm font-semibold text-[color:var(--foreground)]">
+                        <a
+                          href={pr.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="link-plugin"
+                        >
+                          #{pr.id}
+                        </a>
+                      </div>
+                      <div role="cell" className="text-sm">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                            pr.type === "plugin"
+                              ? "badge-plugin"
+                              : pr.type === "theme"
+                                ? "badge-theme"
+                                : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
+                          }`}
+                        >
+                          {pr.type}
+                        </span>
+                      </div>
+                      <div role="cell" className="text-sm text-[color:var(--muted)]">
+                        <span className="block max-w-[320px] truncate">
+                          {cleanTitle(pr.title)}
+                        </span>
+                      </div>
+                      <div role="cell" className="text-sm text-[color:var(--muted)]">
+                        {formatRelativeTime(
+                          isMergedView && mergedPr ? mergedPr.mergedAt : pr.createdAt,
+                        )}
+                      </div>
+                      {isMergedView ? (
+                        <div role="cell" className="text-sm text-[color:var(--muted)]">
+                          {mergedPr?.daysToMerge ?? ""}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     </section>
   );
