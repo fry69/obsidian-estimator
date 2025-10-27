@@ -15,10 +15,7 @@ import { useTheme } from "./hooks/useTheme";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { fetchQueueSummary } from "./lib/fetchQueueSummary";
 import { fetchQueueDetails } from "./lib/fetchQueueDetails";
-import {
-  formatAbsoluteDate,
-  useRelativeTime,
-} from "./hooks/useRelativeTime";
+import { formatAbsoluteDate, useRelativeTime } from "./hooks/useRelativeTime";
 
 type TableVariant = "queue" | "merged";
 
@@ -341,7 +338,9 @@ function App() {
               <span className="font-semibold">Last change:</span>{" "}
               <span title={changedAbsolute}>{changedRelative}</span>
             </p>
-            <p>All calculations are estimates. Not affiliated with Obsidian MD.</p>
+            <p>
+              All calculations are estimates. Not affiliated with Obsidian MD.
+            </p>
             <p className="mt-1">
               © 2025{" "}
               <a

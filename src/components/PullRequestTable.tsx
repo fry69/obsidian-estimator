@@ -402,7 +402,10 @@ const VirtualizedRow: React.FC<VirtualRowProps> = ({
         transform: `translateY(${virtualRow.start}px)`,
       }}
     >
-      <div role="cell" className="text-sm font-semibold text-[color:var(--foreground)]">
+      <div
+        role="cell"
+        className="text-sm font-semibold text-[color:var(--foreground)]"
+      >
         <a
           href={pr.url}
           target="_blank"
@@ -420,7 +423,9 @@ const VirtualizedRow: React.FC<VirtualRowProps> = ({
         </span>
       </div>
       <div role="cell" className="text-sm text-[color:var(--muted)]">
-        <span className="block max-w-[320px] truncate">{cleanTitle(pr.title)}</span>
+        <span className="block max-w-[320px] truncate">
+          {cleanTitle(pr.title)}
+        </span>
       </div>
       <div role="cell" className="text-sm text-[color:var(--muted)]">
         {relativeTime}
