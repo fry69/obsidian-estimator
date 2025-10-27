@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- add robots.txt
+
 ## [0.6.0] - 2025-10-27
 
 - prevent FOUC on load/refresh
