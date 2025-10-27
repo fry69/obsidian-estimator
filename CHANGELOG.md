@@ -12,6 +12,7 @@
 - prevent FOUC on load/refresh
 - fix text contrast issues for accessibility
 - use virtual table
+- remove theme pre-load script
 
 ## [0.4.1] - 2025-10-24
 

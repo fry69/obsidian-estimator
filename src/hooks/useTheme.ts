@@ -1,7 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { usePersistentState } from "./usePersistentState";
 
 export type Theme = "light" | "dark";
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const getPreferredTheme = (): Theme => {
   if (typeof window !== "undefined") {
@@ -25,7 +28,7 @@ export function useTheme() {
   );
 
   // Update document theme class when it changes
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
