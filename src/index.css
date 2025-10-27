@@ -25,6 +25,16 @@
   --shadow-soft: 0 30px 60px -45px rgba(15, 23, 42, 0.45);
   --shadow-hover: 0 40px 80px -45px rgba(56, 189, 248, 0.45);
   --accent: #38bdf8; /* sky-400 */
+  --accent-plugin: #0369a1; /* sky-700 */
+  --accent-plugin-hover: #0b4f7e; /* sky-800 */
+  --accent-plugin-soft: rgba(3, 105, 161, 0.12);
+  --accent-theme: #9d174d; /* pink-700 */
+  --accent-theme-hover: #831843; /* fuchsia-800 */
+  --accent-theme-soft: rgba(157, 23, 77, 0.12);
+  --accent-button-bg: #0369a1;
+  --accent-button-text: #f8fafc;
+  --shadow-accent: 0 20px 45px -25px rgba(6, 148, 194, 0.55);
+  --warning: #7c2d12;
 }
 
 :root.dark {
@@ -34,12 +44,22 @@
   --surface-muted: rgba(15, 23, 42, 0.88);
   --surface-hover: rgba(30, 41, 59, 0.92);
   --foreground: #e2e8f0; /* slate-200 */
-  --muted: #94a3b8; /* slate-400 */
+  --muted: #cbd5f5; /* lighter slate for readability */
   --border: rgba(71, 85, 105, 0.7);
   --border-strong: rgba(148, 163, 184, 0.35);
   --shadow-soft: 0 35px 90px -45px rgba(2, 6, 23, 0.85);
   --shadow-hover: 0 45px 110px -45px rgba(56, 189, 248, 0.5);
   --accent: #38bdf8; /* sky-400 */
+  --accent-plugin: #38bdf8; /* sky-400 */
+  --accent-plugin-hover: #0ea5e9; /* sky-500 */
+  --accent-plugin-soft: rgba(56, 189, 248, 0.22);
+  --accent-theme: #f472b6; /* pink-400 */
+  --accent-theme-hover: #fb7185; /* rose-400 */
+  --accent-theme-soft: rgba(244, 114, 182, 0.26);
+  --accent-button-bg: #0369a1;
+  --accent-button-text: #f8fafc;
+  --shadow-accent: 0 20px 45px -25px rgba(56, 189, 248, 0.7);
+  --warning: #fdba74;
 }
 
 body {
@@ -54,4 +74,35 @@ html.theme-ready body {
   transition:
     background-color 220ms ease,
     color 220ms ease;
+}
+
+.text-plugin-accent {
+  color: var(--accent-plugin);
+}
+
+.text-theme-accent {
+  color: var(--accent-theme);
+}
+
+.link-plugin {
+  color: var(--accent-plugin);
+  transition: color 180ms ease;
+}
+
+.link-plugin:hover {
+  color: var(--accent-plugin-hover);
+}
+
+.badge-plugin {
+  background-color: var(--accent-plugin-soft);
+  color: var(--accent-plugin);
+}
+
+.badge-theme {
+  background-color: var(--accent-theme-soft);
+  color: var(--accent-theme);
+}
+
+.warning-text {
+  color: var(--warning);
 }

@@ -10,6 +10,7 @@
 - add staging deploy
 - replace D1 with KV
 - prevent FOUC on load/refresh
+- fix text contrast issues for accessibility
 
 ## [0.4.1] - 2025-10-24
 

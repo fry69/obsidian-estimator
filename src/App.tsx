@@ -111,7 +111,7 @@ function App() {
   const tabButtonBase =
     "relative inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
   const tabActiveClasses =
-    "bg-sky-500 text-white shadow-[0_15px_35px_-20px_rgba(14,165,233,0.7)]";
+    "bg-[color:var(--accent-button-bg)] text-[color:var(--accent-button-text)] shadow-[var(--shadow-accent)]";
   const tabInactiveClasses =
     "text-[color:var(--muted)] hover:text-[color:var(--foreground)]";
 
@@ -153,6 +153,9 @@ function App() {
           </header>
 
           <main className="flex flex-col gap-12">
+            <h2 className="text-2xl font-semibold text-[color:var(--foreground)]">
+              Key metrics
+            </h2>
             <section
               id="key-metrics"
               className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5"
@@ -161,7 +164,7 @@ function App() {
                 title="Plugin Wait"
                 value={estimatedPluginWaitDays}
                 range={pluginWaitRange}
-                color="text-sky-500 dark:text-sky-400"
+                color="text-plugin-accent"
                 warning={
                   isPluginWaitHighVariance
                     ? "Estimates may be less reliable due to high variance."
@@ -174,7 +177,7 @@ function App() {
                 title="Theme Wait"
                 value={estimatedThemeWaitDays}
                 range={themeWaitRange}
-                color="text-pink-500 dark:text-pink-400"
+                color="text-theme-accent"
                 warning={
                   isThemeWaitHighVariance
                     ? "Estimates may be less reliable due to high variance."

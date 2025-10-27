@@ -47,7 +47,7 @@ const buttonBase =
 const inactiveButtonClasses =
   "border border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--foreground)] shadow-sm hover:border-[color:var(--border-strong)] hover:bg-[color:var(--surface-hover)]";
 const activeButtonClasses =
-  "border border-transparent bg-sky-500 text-white shadow-[0_20px_45px_-25px_rgba(56,189,248,0.7)]";
+  "border border-transparent bg-[color:var(--accent-button-bg)] text-[color:var(--accent-button-text)] shadow-[var(--shadow-accent)]";
 
 const TimelineChart: React.FC<TimelineChartProps> = ({
   chartData,

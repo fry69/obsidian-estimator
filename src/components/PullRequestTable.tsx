@@ -70,7 +70,7 @@ const buttonBase =
 const inactiveButtonClasses =
   "border border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--foreground)] shadow-sm hover:border-[color:var(--border-strong)] hover:bg-[color:var(--surface-hover)]";
 const activeButtonClasses =
-  "border border-transparent bg-sky-500 text-white shadow-[0_20px_45px_-25px_rgba(56,189,248,0.7)]";
+  "border border-transparent bg-[color:var(--accent-button-bg)] text-[color:var(--accent-button-text)] shadow-[var(--shadow-accent)]";
 
 const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
   const { filterType, setFilterType, variant } = props;
@@ -324,7 +324,7 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                       href={pr.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sky-500 transition-colors hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300"
+                      className="link-plugin"
                     >
                       #{pr.id}
                     </a>
@@ -333,9 +333,9 @@ const PullRequestTable: React.FC<PullRequestTableProps> = (props) => {
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
                         pr.type === "plugin"
-                          ? "bg-sky-500/10 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200"
+                          ? "badge-plugin"
                           : pr.type === "theme"
-                            ? "bg-pink-500/10 text-pink-700 dark:bg-pink-400/20 dark:text-pink-200"
+                            ? "badge-theme"
                             : "bg-gray-500/10 text-gray-600 dark:bg-gray-400/20 dark:text-gray-200"
                       }`}
                     >
