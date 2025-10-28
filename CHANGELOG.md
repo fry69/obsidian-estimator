@@ -4,6 +4,7 @@
 
 - add robots.txt
 - replace GitHub PAT with OAuth workflow
+- add device flow script for obtaining refresh token
 
 ## [0.6.0] - 2025-10-27
 

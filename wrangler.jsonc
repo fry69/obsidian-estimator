@@ -61,6 +61,10 @@
           "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
           "preview_id": "a8f9a5262b374409b663688987a8203c",
         },
+        {
+          "binding": "GITHUB_OAUTH",
+          "id": "a372633f000743169659ed9d7c85d5c6",
+        },
       ],
       "assets": {
         "not_found_handling": "single-page-application",
@@ -78,6 +82,10 @@
           "binding": "QUEUE_DATA",
           "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
           "preview_id": "a8f9a5262b374409b663688987a8203c",
+        },
+        {
+          "binding": "GITHUB_OAUTH",
+          "id": "a372633f000743169659ed9d7c85d5c6",
         },
       ],
       "assets": {

@@ -35,10 +35,40 @@ single JSON payload for fast reads.
       `wrangler kv namespace create obsidian-queue-data`
     - (Optional) Create a separate preview namespace for local/staging:
       `wrangler kv namespace create obsidian-queue-data-preview --preview`
+    - Create a KV namespace for storing GitHub OAuth tokens (one-time):
+      `wrangler kv namespace create obsidian-github-oauth`
+    - (Optional) Preview namespace:
+      `wrangler kv namespace create obsidian-github-oauth-preview --preview`
     - Update `wrangler.jsonc` with the namespace IDs returned by Wrangler.
-4.  **GitHub Token:**
-    - Create a GitHub Personal Access Token with `repo` scope.
-    - Add as a Cloudflare secret: `wrangler secret put GITHUB_TOKEN`
+4.  **GitHub App OAuth (replaces the old PAT flow):**
+    - Create or configure a GitHub App with the OAuth Web Application flow
+      enabled, and grant it permission to read pull requests from
+      `obsidianmd/obsidian-releases`.
+    - Add the GitHub App credentials as Cloudflare secrets (repeat per
+      environment as required):
+      - `wrangler secret put GH_CLIENT_ID`
+      - `wrangler secret put GH_CLIENT_SECRET`
+      - `wrangler secret put GH_CLIENT_ID --env staging`
+      - `wrangler secret put GH_CLIENT_SECRET --env staging`
+    - Complete the App’s OAuth flow once (with the account that should back the
+      ingest worker) and capture the returned `refresh_token`. Store it in the
+      `GITHUB_OAUTH` KV namespace under the `GH_REFRESH` key:
+      - `wrangler kv key put --binding GITHUB_OAUTH GH_REFRESH <refresh_token>`
+      - `wrangler kv key put --binding GITHUB_OAUTH GH_REFRESH <refresh_token> --env staging`
+    - Use the helper script in `vendor/tools/device-flow.sh` to walk through the
+      GitHub device authorization flow and obtain the `refresh_token`. Export
+      your GitHub App credentials, run the script, then follow the prompts:
+
+      ```bash
+      GH_CLIENT_ID="<your_app_client_id>" \
+      GH_CLIENT_SECRET="<your_app_client_secret>" \
+      ./vendor/tools/device-flow.sh
+      ```
+
+      The script prints a `verification_uri` and `user_code`. Open the URL in
+      your browser, paste or type the one-time code, and approve the request.
+      Leave the script running; once GitHub completes the authorization it will
+      display the `refresh_token` you need to store in KV.
 5.  **Deploy:**
     - Production: `npm run deploy`
       (https://obsidian-estimator.fry69.workers.dev/)
@@ -69,6 +99,11 @@ large.
 You can force a refresh outside the cron schedule by calling the authenticated
 `/api/trigger` endpoint. Supply the same bearer token you configured in the
 `TRIGGER_TOKEN` secret:
+
+```bash
+wrangler secret put TRIGGER_TOKEN
+wrangler secret put TRIGGER_TOKEN --env staging
+```
 
 ```bash
 curl -X POST "https://obsidian-estimator.fry69.workers.dev/api/trigger" \

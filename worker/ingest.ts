@@ -34,6 +34,18 @@ const GH_HEADERS_BASE = {
   "User-Agent": "obsidian-estimator/worker",
 };
 
+interface OAuthTokenResponse {
+  access_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  scope?: string;
+  refresh_token?: string;
+  refresh_token_expires_in?: number;
+  error?: string;
+  error_description?: string;
+  error_uri?: string;
+}
+
 let cachedToken: { value: string; exp: number } | null = null;
 
 async function getUserToken(env: Env): Promise<string> {
@@ -55,10 +67,15 @@ async function getUserToken(env: Env): Promise<string> {
     headers: { Accept: "application/json" },
     body,
   });
-  const data = await r.json<any>();
+  const data = (await r.json()) as OAuthTokenResponse;
   if (!r.ok)
     throw new Error(
       `GitHub token refresh failed: ${r.status} ${JSON.stringify(data)}`,
+    );
+
+  if (!data.access_token)
+    throw new Error(
+      `GitHub token refresh response missing access_token: ${JSON.stringify(data)}`,
     );
 
   // Rotate refresh token if provided
@@ -69,26 +86,6 @@ async function getUserToken(env: Env): Promise<string> {
   const exp = now + Math.max(60 * 60, (data.expires_in ?? 8 * 60 * 60) - 60);
   cachedToken = { value: data.access_token, exp };
   return data.access_token;
-}
-
-async function ghFetch(env: Env, url: string, init: RequestInit = {}) {
-  const token = await getUserToken(env);
-  const r = await fetch(url, {
-    ...init,
-    headers: {
-      ...GH_HEADERS_BASE,
-      Authorization: `Bearer ${token}`,
-      ...(init.headers || {}),
-    },
-  });
-  // Handle search-bucket throttling explicitly
-  if (r.status === 403 && r.headers.get("x-ratelimit-remaining") === "0") {
-    const reset = r.headers.get("x-ratelimit-reset");
-    throw new Error(
-      `GitHub rate limit hit (search bucket). Resets at ${reset}`,
-    );
-  }
-  return r;
 }
 
 /**

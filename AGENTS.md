@@ -51,18 +51,6 @@ Type checking can be performed with the build command:
 npm run build
 ```
 
-### Data Storage
-
-The application stores queue data in Cloudflare KV. To create the namespace for
-local development and production, run:
-
-```bash
-wrangler kv namespace create obsidian-queue-data
-wrangler kv namespace create obsidian-queue-data-preview --preview
-```
-
-Update the resulting IDs inside `wrangler.jsonc`.
-
 ### Building and Deployment
 
 To build the application for production, run:
