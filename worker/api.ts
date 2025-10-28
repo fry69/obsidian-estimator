@@ -100,9 +100,12 @@ export async function handleRequest(
 
   return serveStaticAsset(request, env);
 }
-async function serveStaticAsset(request: Request, env: Env): Promise<Response> {
-  if (env.ASSETS) {
-    return env.ASSETS.fetch(request);
-  }
+async function serveStaticAsset(
+  request: Request,
+  _env: Env,
+): Promise<Response> {
+  // if (env.ASSETS) {
+  //   return env.ASSETS.fetch(request);
+  // }
   return fetch(request);
 }

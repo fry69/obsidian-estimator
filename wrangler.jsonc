@@ -18,6 +18,10 @@
       "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
       "preview_id": "a8f9a5262b374409b663688987a8203c",
     },
+    {
+      "binding": "GITHUB_OAUTH",
+      "id": "a372633f000743169659ed9d7c85d5c6",
+    },
   ],
   /**
    * Smart Placement
@@ -43,11 +47,11 @@
    * Static Assets
    * https://developers.cloudflare.com/workers/static-assets/binding/
    */
-  "assets": {
-    "directory": "./dist/client",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-  },
+  // "assets": {
+  //   "directory": "./dist/client",
+  //   "binding": "ASSETS",
+  //   "not_found_handling": "single-page-application",
+  // },
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
   "env": {
     "production": {

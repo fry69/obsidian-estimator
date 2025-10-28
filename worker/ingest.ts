@@ -28,6 +28,69 @@ interface GitHubPr {
   } | null;
 }
 
+const GH_HEADERS_BASE = {
+  Accept: "application/vnd.github+json",
+  "X-GitHub-Api-Version": "2022-11-28",
+  "User-Agent": "obsidian-estimator/worker",
+};
+
+let cachedToken: { value: string; exp: number } | null = null;
+
+async function getUserToken(env: Env): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedToken && cachedToken.exp > now + 60) return cachedToken.value;
+
+  const refresh = await env.GITHUB_OAUTH.get("GH_REFRESH");
+  if (!refresh) throw new Error("Missing GH_REFRESH in KV");
+
+  const body = new URLSearchParams({
+    client_id: env.GH_CLIENT_ID,
+    ...(env.GH_CLIENT_SECRET ? { client_secret: env.GH_CLIENT_SECRET } : {}),
+    grant_type: "refresh_token",
+    refresh_token: refresh,
+  });
+
+  const r = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    body,
+  });
+  const data = await r.json<any>();
+  if (!r.ok)
+    throw new Error(
+      `GitHub token refresh failed: ${r.status} ${JSON.stringify(data)}`,
+    );
+
+  // Rotate refresh token if provided
+  if (data.refresh_token)
+    await env.GITHUB_OAUTH.put("GH_REFRESH", data.refresh_token);
+
+  // Cache access token (ghu_) for ~7.5h; GitHub returns expires_in (seconds)
+  const exp = now + Math.max(60 * 60, (data.expires_in ?? 8 * 60 * 60) - 60);
+  cachedToken = { value: data.access_token, exp };
+  return data.access_token;
+}
+
+async function ghFetch(env: Env, url: string, init: RequestInit = {}) {
+  const token = await getUserToken(env);
+  const r = await fetch(url, {
+    ...init,
+    headers: {
+      ...GH_HEADERS_BASE,
+      Authorization: `Bearer ${token}`,
+      ...(init.headers || {}),
+    },
+  });
+  // Handle search-bucket throttling explicitly
+  if (r.status === 403 && r.headers.get("x-ratelimit-remaining") === "0") {
+    const reset = r.headers.get("x-ratelimit-reset");
+    throw new Error(
+      `GitHub rate limit hit (search bucket). Resets at ${reset}`,
+    );
+  }
+  return r;
+}
+
 /**
  * Fetches paginated results from the GitHub search API.
  * @param octokit - An authenticated Octokit instance.
@@ -102,8 +165,45 @@ async function hashString(value: string): Promise<string> {
 }
 
 export async function ingest(env: Env): Promise<void> {
+  // simple global throttle for this octokit instance
+  let lastRequestAt = 0;
+  const MIN_INTERVAL_MS = 2200; // ~27 req/min to be gentle with search bucket
+
   const octokit = new Octokit({
-    auth: env.GITHUB_TOKEN,
+    request: {
+      // Default headers for every request
+      headers: {
+        ...GH_HEADERS_BASE,
+      },
+      // Workers runtime already has global fetch; Octokit will use it.
+    },
+  });
+
+  // Inject a fresh OAuth user token before every request + apply a tiny throttle
+  octokit.hook.before("request", async (options) => {
+    // Throttle all outbound calls from this instance
+    const now = Date.now();
+    const wait = lastRequestAt + MIN_INTERVAL_MS - now;
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastRequestAt = Date.now();
+
+    // Attach fresh user token
+    const token = await getUserToken(env);
+    options.headers = {
+      ...(options.headers || {}),
+      authorization: `Bearer ${token}`,
+    };
+  });
+
+  octokit.hook.after("request", async (response, options) => {
+    const remain = response.headers["x-ratelimit-remaining"];
+    const used = response.headers["x-ratelimit-used"];
+    const reset = response.headers["x-ratelimit-reset"];
+    if (remain !== undefined) {
+      console.debug(
+        `[GitHub] remain=${remain} used=${used} reset=${reset} route=${options.method} ${options.url}`,
+      );
+    }
   });
 
   const owner = "obsidianmd";
@@ -120,13 +220,18 @@ export async function ingest(env: Env): Promise<void> {
   const mergedThemesQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:theme`;
 
   try {
-    const [openPlugins, openThemes, mergedPlugins, mergedThemes] =
-      await Promise.all([
-        searchGitHubIssues(octokit, openPluginsQuery),
-        searchGitHubIssues(octokit, openThemesQuery),
-        searchGitHubIssues(octokit, mergedPluginsQuery),
-        searchGitHubIssues(octokit, mergedThemesQuery),
-      ]);
+    const openPlugins = await searchGitHubIssues(octokit, openPluginsQuery);
+    const openThemes = await searchGitHubIssues(octokit, openThemesQuery);
+    const mergedPlugins = await searchGitHubIssues(octokit, mergedPluginsQuery);
+    const mergedThemes = await searchGitHubIssues(octokit, mergedThemesQuery);
+
+    // const [openPlugins, openThemes, mergedPlugins, mergedThemes] =
+    //   await Promise.all([
+    //     searchGitHubIssues(octokit, openPluginsQuery),
+    //     searchGitHubIssues(octokit, openThemesQuery),
+    //     searchGitHubIssues(octokit, mergedPluginsQuery),
+    //     searchGitHubIssues(octokit, mergedThemesQuery),
+    //   ]);
     const queueDetails: QueueDetails = {
       openPrs: buildOpenPrPayload([...openPlugins, ...openThemes]),
       mergedPrs: buildMergedPrPayload([...mergedPlugins, ...mergedThemes]),
