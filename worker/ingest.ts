@@ -194,8 +194,8 @@ export async function ingest(env: Env): Promise<void> {
       ...(options.headers || {}),
       authorization: `Bearer ${token}`,
     };
-    console.debug(`[GitHub] ${options.method} ${options.url} requested`);
-    console.debug(`[GitHub] Headers: ${JSON.stringify(options.headers, null, 2)}`);
+    // console.debug(`[GitHub] ${options.method} ${options.url} requested`);
+    // console.debug(`[GitHub] Headers: ${JSON.stringify(options.headers, null, 2)}`);
   });
 
   // Log rate limit info after each request for debugging
