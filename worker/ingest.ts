@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
 import { GH_HEADERS_BASE, getGitHubAccessToken } from "./oauth";
 import {
   type QueueDetails,
@@ -9,7 +10,14 @@ import {
   writeQueueDetails,
   writeQueueSummary,
 } from "./queueStore";
-import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
+
+const REVIEW_TYPES = ["plugin", "theme"] as const;
+const READY_FOR_REVIEW_LABEL = "Ready for review";
+const GITHUB_OWNER = "obsidianmd";
+const GITHUB_REPO = "obsidian-releases";
+
+type ReviewAssetType = (typeof REVIEW_TYPES)[number];
+type ReviewAssetTypeWithFallback = ReviewAssetType | "unknown";
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.
@@ -30,10 +38,14 @@ interface GitHubPr {
 }
 
 /**
- * Fetches paginated results from the GitHub search API.
- * @param octokit - An authenticated Octokit instance.
- * @param q - The search query string.
- * @returns A promise that resolves to an array of PR/issue data.
+ * Fetch paginated GitHub search results for the provided query.
+ *
+ * The search API caps responses at 1,000 items; this helper automatically
+ * traverses the pages so callers receive the combined dataset.
+ *
+ * @param octokit - Authenticated Octokit instance tied to our OAuth token.
+ * @param q - The GitHub search query string to execute.
+ * @returns All search items returned by the API.
  */
 async function searchGitHubIssues(
   octokit: Octokit,
@@ -46,13 +58,50 @@ async function searchGitHubIssues(
   return results as GitHubPr[];
 }
 
-function resolvePrType(pr: GitHubPr): string {
-  const typeLabel = pr.labels.find(
-    (label) => label.name === "plugin" || label.name === "theme",
+/**
+ * Determine whether a PR belongs to the plugin or theme review queue.
+ *
+ * GitHub PR labels contain the data we need; this helper normalises the value
+ * for downstream consumers. If no recognised label is present we fall back to
+ * `"unknown"` which is excluded from queue totals.
+ *
+ * @param pr - The GitHub search result to inspect.
+ * @returns The queue type label if present, otherwise `"unknown"`.
+ */
+function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
+  const typeLabel = pr.labels.find((label) =>
+    REVIEW_TYPES.includes(label.name as ReviewAssetType),
   );
-  return typeLabel ? typeLabel.name : "unknown";
+  return (typeLabel?.name as ReviewAssetTypeWithFallback) ?? "unknown";
 }
 
+/**
+ * Build the GitHub search query for open items of a specific review type.
+ *
+ * @param type - The review queue label to query.
+ * @returns A ready-to-run GitHub search string.
+ */
+function buildOpenSearchQuery(type: ReviewAssetType): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} state:open label:"${READY_FOR_REVIEW_LABEL}" label:${type}`;
+}
+
+/**
+ * Build the GitHub search query for merged items after a given date.
+ *
+ * @param since - ISO date string (YYYY-MM-DD) to bound the merged date filter.
+ * @param type - The review queue label to query.
+ * @returns A ready-to-run GitHub search string.
+ */
+function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:${type}`;
+}
+
+/**
+ * Transform open pull requests from the GitHub API into queue-ready rows.
+ *
+ * @param prs - Raw GitHub search results representing open PRs.
+ * @returns Sorted queue entries ordered by creation date (oldest first).
+ */
 function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
   const mapped = prs.map<QueuePullRequest>((pr) => ({
     id: pr.number,
@@ -67,6 +116,12 @@ function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
   });
 }
 
+/**
+ * Transform merged pull requests into queue history rows.
+ *
+ * @param prs - Raw GitHub search results representing merged PRs.
+ * @returns Sorted queue history entries ordered by merge date (oldest first).
+ */
 function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
   const mapped = prs
     .filter((pr) => pr.pull_request && pr.pull_request.merged_at)
@@ -94,6 +149,15 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
   });
 }
 
+/**
+ * Produce a deterministic hash for the given string content.
+ *
+ * Cloudflare Workers expose the Web Crypto API, enabling us to generate a
+ * SHA-256 hex digest equal to what browsers or Node produce.
+ *
+ * @param value - The input string to hash.
+ * @returns Hex-encoded SHA-256 digest.
+ */
 async function hashString(value: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(value);
@@ -102,6 +166,16 @@ async function hashString(value: string): Promise<string> {
   return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * Fetch the latest queue data from GitHub and persist normalised snapshots.
+ *
+ * The ingest run retrieves open and recently merged PRs for the Obsidian
+ * release queues, projects them into consistent payloads, and stores a summary
+ * alongside the full details in KV. Rewrites of the larger details record only
+ * occur when the content hash changes to minimise storage churn.
+ *
+ * @param env - Worker bindings including KV namespace and OAuth secrets.
+ */
 export async function ingest(env: Env): Promise<void> {
   // Get a fresh user token
   const token = await getGitHubAccessToken(env);
@@ -138,18 +212,15 @@ export async function ingest(env: Env): Promise<void> {
     }
   });
 
-  const owner = "obsidianmd";
-  const repo = "obsidian-releases";
-
   console.debug("[Ingest] Fetching open plugins and themes...");
-  const openPluginsQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:plugin`;
-  const openThemesQuery = `is:pr repo:${owner}/${repo} state:open label:"Ready for review" label:theme`;
+  const openPluginsQuery = buildOpenSearchQuery("plugin");
+  const openThemesQuery = buildOpenSearchQuery("theme");
 
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-  const mergedQueryDate = twelveMonthsAgo.toISOString().split("T")[0];
-  const mergedPluginsQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:plugin`;
-  const mergedThemesQuery = `is:pr repo:${owner}/${repo} is:merged merged:>${mergedQueryDate} label:theme`;
+  const mergedQueryDate = twelveMonthsAgo.toISOString().slice(0, 10);
+  const mergedPluginsQuery = buildMergedSearchQuery(mergedQueryDate, "plugin");
+  const mergedThemesQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
 
   try {
     // Fetch queries sequentially as per GitHub API best practices

@@ -74,7 +74,9 @@ export async function getGitHubAccessToken(env: Env): Promise<string> {
 
   const payload = (await response.json()) as OAuthTokenResponse;
   if (!response.ok) {
-    throw new Error(`GitHub token refresh failed: ${response.status} ${JSON.stringify(payload)}`);
+    throw new Error(
+      `GitHub token refresh failed: ${response.status} ${JSON.stringify(payload)}`,
+    );
   }
 
   if (!payload.access_token) {
@@ -89,7 +91,9 @@ export async function getGitHubAccessToken(env: Env): Promise<string> {
 
   const minimumExpiry = now + GH_TOKEN_MIN_TTL_SECONDS;
   const reportedExpiry =
-    now + (payload.expires_in ?? GH_TOKEN_MAX_TTL_SECONDS) - TOKEN_REFRESH_BUFFER_SECONDS;
+    now +
+    (payload.expires_in ?? GH_TOKEN_MAX_TTL_SECONDS) -
+    TOKEN_REFRESH_BUFFER_SECONDS;
   const exp = Math.max(minimumExpiry, reportedExpiry);
 
   cachedToken = { value: payload.access_token, exp };

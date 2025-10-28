@@ -4,6 +4,7 @@
 
 - disable internal throttle
 - refactor OAuth token caching logic
+- code cleanup
 
 ## [0.7.0] - 2025-10-28
 
