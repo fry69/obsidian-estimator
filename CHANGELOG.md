@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0] - 2025-10-28
 
 - add robots.txt
 - replace GitHub PAT with OAuth workflow
