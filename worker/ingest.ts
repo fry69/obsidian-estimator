@@ -174,27 +174,29 @@ export async function ingest(env: Env): Promise<void> {
       // Default headers for every request
       headers: {
         ...GH_HEADERS_BASE,
-        authorization: `Bearer ${token}`,
+        // authorization: `Bearer ${token}`,
       },
       // Workers runtime already has global fetch; Octokit will use it.
     },
   });
 
   // Inject a fresh OAuth user token before every request + apply a tiny throttle
-  // octokit.hook.before("request", async (options) => {
-  //   // Throttle all outbound calls from this instance
-  //   const now = Date.now();
-  //   const wait = lastRequestAt + MIN_INTERVAL_MS - now;
-  //   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  //   lastRequestAt = Date.now();
+  octokit.hook.before("request", async (options) => {
+    // Throttle all outbound calls from this instance
+    // const now = Date.now();
+    // const wait = lastRequestAt + MIN_INTERVAL_MS - now;
+    // if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    // lastRequestAt = Date.now();
 
-  //   // Attach fresh user token
-  //   const token = await getUserToken(env);
-  //   options.headers = {
-  //     ...(options.headers || {}),
-  //     authorization: `Bearer ${token}`,
-  //   };
-  // });
+    // // Attach fresh user token
+    // const token = await getUserToken(env);
+    options.headers = {
+      ...(options.headers || {}),
+      authorization: `Bearer ${token}`,
+    };
+    console.debug(`[GitHub] ${options.method} ${options.url} requested`);
+    console.debug(`[GitHub] Headers: ${JSON.stringify(options.headers, null, 2)}`);
+  });
 
   // Log rate limit info after each request for debugging
   octokit.hook.after("request", async (response, options) => {
