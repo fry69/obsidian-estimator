@@ -6,18 +6,14 @@ const detailsRoute = new URLPattern({ pathname: "/api/details" });
 const triggerRoute = new URLPattern({ pathname: "/api/trigger" });
 
 const CACHE_HEADERS = {
-  "Cache-Control":
-    "private, max-age=1800, stale-while-revalidate=30, stale-if-error=86400",
+  "Cache-Control": "private, max-age=1800, stale-while-revalidate=30, stale-if-error=86400",
 };
 
 async function respondWithSummaryJson(env: Env): Promise<Response> {
   try {
     const payload = await readQueueSummary(env);
     if (!payload) {
-      return Response.json(
-        { error: "Summary not yet available" },
-        { status: 503 },
-      );
+      return Response.json({ error: "Summary not yet available" }, { status: 503 });
     }
     return Response.json(payload, { headers: CACHE_HEADERS });
   } catch (error) {
@@ -28,16 +24,10 @@ async function respondWithSummaryJson(env: Env): Promise<Response> {
 
 async function respondWithDetailsJson(env: Env): Promise<Response> {
   try {
-    const [summary, details] = await Promise.all([
-      readQueueSummary(env),
-      readQueueDetails(env),
-    ]);
+    const [summary, details] = await Promise.all([readQueueSummary(env), readQueueDetails(env)]);
 
     if (!details) {
-      return Response.json(
-        { error: "Details not yet available" },
-        { status: 503 },
-      );
+      return Response.json({ error: "Details not yet available" }, { status: 503 });
     }
 
     return Response.json(
@@ -73,17 +63,11 @@ async function triggerIngest(request: Request, env: Env): Promise<Response> {
     return Response.json({ message: "Ingest triggered" }, { status: 202 });
   } catch (error) {
     console.error("Error triggering ingest:", error);
-    return Response.json(
-      { error: "Failed to trigger ingest" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to trigger ingest" }, { status: 500 });
   }
 }
 
-export async function handleRequest(
-  request: Request,
-  env: Env,
-): Promise<Response> {
+export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "GET" && summaryRoute.test(url)) {
@@ -98,14 +82,5 @@ export async function handleRequest(
     return triggerIngest(request, env);
   }
 
-  return serveStaticAsset(request, env);
-}
-async function serveStaticAsset(
-  request: Request,
-  _env: Env,
-): Promise<Response> {
-  // if (env.ASSETS) {
-  //   return env.ASSETS.fetch(request);
-  // }
   return fetch(request);
 }
