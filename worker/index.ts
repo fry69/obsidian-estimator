@@ -19,6 +19,12 @@ export default {
       `[Scheduled] Cron trigger fired at ${controller.scheduledTime}`,
     );
 
-    return await ingest(env);
+    const result = await ingest(env);
+    if (!result.ok) {
+      console.error(
+        `[Scheduled] Ingest failed at ${controller.scheduledTime}`,
+        result.error ?? result.message,
+      );
+    }
   },
 } satisfies ExportedHandler<Env>;

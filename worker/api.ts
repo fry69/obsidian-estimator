@@ -69,8 +69,9 @@ async function triggerIngest(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    await ingest(env);
-    return Response.json({ message: "Ingest triggered" }, { status: 202 });
+    const result = await ingest(env);
+    const status = result.ok ? 202 : 500;
+    return Response.json(result, { status });
   } catch (error) {
     console.error("Error triggering ingest:", error);
     return Response.json(

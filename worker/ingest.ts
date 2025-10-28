@@ -37,6 +37,71 @@ interface GitHubPr {
   } | null;
 }
 
+type IngestLogLevel = "debug" | "info" | "error";
+
+interface IngestLogEntry {
+  level: IngestLogLevel;
+  message: string;
+}
+
+interface IngestResult {
+  ok: boolean;
+  message: string;
+  logs: IngestLogEntry[];
+  error?: string;
+  detailsUpdated?: boolean;
+  summaryUpdated?: boolean;
+  detailsVersion?: string;
+  checkedAt?: string;
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch (serializationError) {
+    console.error(
+      "[Ingest] Failed to serialise error payload.",
+      serializationError,
+    );
+    return String(error);
+  }
+}
+
+function createIngestLogger() {
+  const entries: IngestLogEntry[] = [];
+
+  const record = (level: IngestLogLevel, message: string): void => {
+    entries.push({ level, message });
+  };
+
+  return {
+    entries,
+    debug(message: string): void {
+      record("debug", message);
+      console.debug(message);
+    },
+    info(message: string): void {
+      record("info", message);
+      console.info(message);
+    },
+    error(message: string, error?: unknown): void {
+      const detail = error ? describeError(error) : null;
+      record("error", detail ? `${message} - ${detail}` : message);
+      if (error) {
+        console.error(message, error);
+      } else {
+        console.error(message);
+      }
+    },
+  };
+}
+
 /**
  * Fetch paginated GitHub search results for the provided query.
  *
@@ -176,7 +241,11 @@ async function hashString(value: string): Promise<string> {
  *
  * @param env - Worker bindings including KV namespace and OAuth secrets.
  */
-export async function ingest(env: Env): Promise<void> {
+export async function ingest(env: Env): Promise<IngestResult> {
+  const logger = createIngestLogger();
+  let detailsUpdated = false;
+  let summaryUpdated = false;
+
   // Get a fresh user token
   const token = await getGitHubAccessToken(env);
 
@@ -206,23 +275,26 @@ export async function ingest(env: Env): Promise<void> {
     const used = response.headers["x-ratelimit-used"];
     const reset = response.headers["x-ratelimit-reset"];
     if (remain !== undefined) {
-      console.debug(
+      logger.debug(
         `[GitHub] remain=${remain} used=${used} reset=${reset} route=${options.method} ${options.url}`,
       );
     }
   });
 
-  console.debug("[Ingest] Fetching open plugins and themes...");
-  const openPluginsQuery = buildOpenSearchQuery("plugin");
-  const openThemesQuery = buildOpenSearchQuery("theme");
-
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-  const mergedQueryDate = twelveMonthsAgo.toISOString().slice(0, 10);
-  const mergedPluginsQuery = buildMergedSearchQuery(mergedQueryDate, "plugin");
-  const mergedThemesQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
-
   try {
+    logger.info("[Ingest] Fetching open plugins and themes...");
+    const openPluginsQuery = buildOpenSearchQuery("plugin");
+    const openThemesQuery = buildOpenSearchQuery("theme");
+
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
+    const mergedQueryDate = twelveMonthsAgo.toISOString().slice(0, 10);
+    const mergedPluginsQuery = buildMergedSearchQuery(
+      mergedQueryDate,
+      "plugin",
+    );
+    const mergedThemesQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
+
     // Fetch queries sequentially as per GitHub API best practices
     // https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api
     const openPlugins = await searchGitHubIssues(octokit, openPluginsQuery);
@@ -245,9 +317,10 @@ export async function ingest(env: Env): Promise<void> {
     if (!previousSummary || previousSummary.detailsVersion !== detailsVersion) {
       await writeQueueDetails(env, queueDetails);
       detailsUpdatedAt = nowIso;
-      console.debug(`[Ingest] Details updated (version ${detailsVersion})`);
+      detailsUpdated = true;
+      logger.info(`[Ingest] Details updated (version ${detailsVersion})`);
     } else {
-      console.debug("[Ingest] No changes detected, details update skipped.");
+      logger.debug("[Ingest] No changes detected, details update skipped.");
     }
 
     const totals = queueDetails.openPrs.reduce(
@@ -280,11 +353,30 @@ export async function ingest(env: Env): Promise<void> {
     };
 
     await writeQueueSummary(env, summary);
-    console.debug("[Ingest] Summary update complete.");
+    summaryUpdated = true;
+
+    const completeMessage = "[Ingest] Summary update complete.";
+    logger.info(completeMessage);
+    return {
+      ok: true,
+      message: completeMessage,
+      logs: logger.entries,
+      detailsUpdated,
+      summaryUpdated,
+      detailsVersion,
+      checkedAt: summary.checkedAt,
+    };
   } catch (error) {
-    console.error(
-      "[Ingest] Failed to fetch data from GitHub or update KV:",
-      error,
-    );
+    const errorMessage =
+      "[Ingest] Failed to fetch data from GitHub or update KV.";
+    logger.error(errorMessage, error);
+    return {
+      ok: false,
+      message: errorMessage,
+      error: describeError(error),
+      logs: logger.entries,
+      detailsUpdated,
+      summaryUpdated,
+    };
   }
 }
