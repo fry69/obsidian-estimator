@@ -31,7 +31,7 @@ interface GitHubPr {
 const GH_HEADERS_BASE = {
   Accept: "application/vnd.github+json",
   "X-GitHub-Api-Version": "2022-11-28",
-  "User-Agent": "obsidian-estimator/worker",
+  "User-Agent": "fry69/obsidian-estimator",
 };
 
 interface OAuthTokenResponse {
@@ -163,46 +163,50 @@ async function hashString(value: string): Promise<string> {
 
 export async function ingest(env: Env): Promise<void> {
   // simple global throttle for this octokit instance
-  let lastRequestAt = 0;
-  const MIN_INTERVAL_MS = 2200; // ~27 req/min to be gentle with search bucket
+  // let lastRequestAt = 0;
+  // const MIN_INTERVAL_MS = 2200; // ~27 req/min to be gentle with search bucket
+
+  // Get a fresh user token
+  const token = await getUserToken(env);
 
   const octokit = new Octokit({
     request: {
       // Default headers for every request
       headers: {
         ...GH_HEADERS_BASE,
+        authorization: `Bearer ${token}`,
       },
       // Workers runtime already has global fetch; Octokit will use it.
     },
   });
 
   // Inject a fresh OAuth user token before every request + apply a tiny throttle
-  octokit.hook.before("request", async (options) => {
-    // Throttle all outbound calls from this instance
-    const now = Date.now();
-    const wait = lastRequestAt + MIN_INTERVAL_MS - now;
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    lastRequestAt = Date.now();
+  // octokit.hook.before("request", async (options) => {
+  //   // Throttle all outbound calls from this instance
+  //   const now = Date.now();
+  //   const wait = lastRequestAt + MIN_INTERVAL_MS - now;
+  //   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  //   lastRequestAt = Date.now();
 
-    // Attach fresh user token
-    const token = await getUserToken(env);
-    options.headers = {
-      ...(options.headers || {}),
-      authorization: `Bearer ${token}`,
-    };
-  });
+  //   // Attach fresh user token
+  //   const token = await getUserToken(env);
+  //   options.headers = {
+  //     ...(options.headers || {}),
+  //     authorization: `Bearer ${token}`,
+  //   };
+  // });
 
   // Log rate limit info after each request for debugging
-  // octokit.hook.after("request", async (response, options) => {
-  //   const remain = response.headers["x-ratelimit-remaining"];
-  //   const used = response.headers["x-ratelimit-used"];
-  //   const reset = response.headers["x-ratelimit-reset"];
-  //   if (remain !== undefined) {
-  //     console.debug(
-  //       `[GitHub] remain=${remain} used=${used} reset=${reset} route=${options.method} ${options.url}`,
-  //     );
-  //   }
-  // });
+  octokit.hook.after("request", async (response, options) => {
+    const remain = response.headers["x-ratelimit-remaining"];
+    const used = response.headers["x-ratelimit-used"];
+    const reset = response.headers["x-ratelimit-reset"];
+    if (remain !== undefined) {
+      console.debug(
+        `[GitHub] remain=${remain} used=${used} reset=${reset} route=${options.method} ${options.url}`,
+      );
+    }
+  });
 
   const owner = "obsidianmd";
   const repo = "obsidian-releases";

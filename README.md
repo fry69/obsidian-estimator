@@ -26,8 +26,8 @@ Access the live dashboard at: https://obsidian-estimator.fry69.workers.dev/
 This project utilizes Cloudflare Workers for both frontend serving and scheduled
 data ingestion from the GitHub API. Each ingest run writes two Cloudflare KV
 keys: a lightweight summary with wait-time aggregates and metadata, and a full
-details payload for table rendering. The frontend primarily consumes the
-summary key to keep reads fast.
+details payload for table rendering. The frontend primarily consumes the summary
+key to keep reads fast.
 
 ## Setup
 

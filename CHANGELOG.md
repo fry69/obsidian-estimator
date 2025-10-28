@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- disable internal throttle
+
 ## [0.7.0] - 2025-10-28
 
 - add robots.txt
