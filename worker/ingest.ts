@@ -68,13 +68,19 @@ async function getUserToken(env: Env): Promise<string> {
     body,
   });
   const data = (await r.json()) as OAuthTokenResponse;
-  if (!r.ok) throw new Error(`GitHub token refresh failed: ${r.status} ${JSON.stringify(data)}`);
+  if (!r.ok)
+    throw new Error(
+      `GitHub token refresh failed: ${r.status} ${JSON.stringify(data)}`,
+    );
 
   if (!data.access_token)
-    throw new Error(`GitHub token refresh response missing access_token: ${JSON.stringify(data)}`);
+    throw new Error(
+      `GitHub token refresh response missing access_token: ${JSON.stringify(data)}`,
+    );
 
   // Rotate refresh token if provided
-  if (data.refresh_token) await env.GITHUB_OAUTH.put("GH_REFRESH", data.refresh_token);
+  if (data.refresh_token)
+    await env.GITHUB_OAUTH.put("GH_REFRESH", data.refresh_token);
 
   // Cache access token (ghu_) for ~7.5h; GitHub returns expires_in (seconds)
   const exp = now + Math.max(60 * 60, (data.expires_in ?? 8 * 60 * 60) - 60);
@@ -88,7 +94,10 @@ async function getUserToken(env: Env): Promise<string> {
  * @param q - The search query string.
  * @returns A promise that resolves to an array of PR/issue data.
  */
-async function searchGitHubIssues(octokit: Octokit, q: string): Promise<GitHubPr[]> {
+async function searchGitHubIssues(
+  octokit: Octokit,
+  q: string,
+): Promise<GitHubPr[]> {
   const results = await octokit.paginate("GET /search/issues", {
     q,
     per_page: 100,
@@ -97,7 +106,9 @@ async function searchGitHubIssues(octokit: Octokit, q: string): Promise<GitHubPr
 }
 
 function resolvePrType(pr: GitHubPr): string {
-  const typeLabel = pr.labels.find((label) => label.name === "plugin" || label.name === "theme");
+  const typeLabel = pr.labels.find(
+    (label) => label.name === "plugin" || label.name === "theme",
+  );
   return typeLabel ? typeLabel.name : "unknown";
 }
 
@@ -274,6 +285,9 @@ export async function ingest(env: Env): Promise<void> {
     await writeQueueSummary(env, summary);
     console.debug("[Ingest] Summary update complete.");
   } catch (error) {
-    console.error("[Ingest] Failed to fetch data from GitHub or update KV:", error);
+    console.error(
+      "[Ingest] Failed to fetch data from GitHub or update KV:",
+      error,
+    );
   }
 }

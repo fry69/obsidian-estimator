@@ -69,6 +69,7 @@ single JSON payload for fast reads.
       your browser, paste or type the one-time code, and approve the request.
       Leave the script running; once GitHub completes the authorization it will
       display the `refresh_token` you need to store in KV.
+
 5.  **Deploy:**
     - Production: `npm run deploy`
       (https://obsidian-estimator.fry69.workers.dev/)
