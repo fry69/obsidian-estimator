@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.1] - 2025-10-28
 
 - disable internal throttle
 - refactor OAuth token caching logic
