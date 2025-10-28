@@ -220,9 +220,6 @@ function App() {
           </header>
 
           <main className="flex flex-col gap-12">
-            <h2 className="text-2xl font-semibold text-[color:var(--foreground)]">
-              Key metrics
-            </h2>
             <section
               id="key-metrics"
               className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5"

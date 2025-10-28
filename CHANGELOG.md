@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - disable internal throttle
+- refactor OAuth token caching logic
 
 ## [0.7.0] - 2025-10-28
 
