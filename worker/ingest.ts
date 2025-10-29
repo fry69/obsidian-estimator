@@ -121,8 +121,6 @@ async function hasNewMergedPullRequests(
   const response = await octokit.request("GET /search/issues", {
     q: query,
     per_page: 1,
-    sort: "updated",
-    order: "desc",
   });
 
   const { total_count } = response.data as { total_count: number };
@@ -185,13 +183,10 @@ async function fetchReadyForReviewPullRequests(
   let previousPageSize = collected.length;
 
   while (previousPageSize === ISSUES_PAGE_SIZE) {
-    const response = await octokit.request(
-      "GET /repos/{owner}/{repo}/issues",
-      {
-        ...baseRequest,
-        page,
-      },
-    );
+    const response = await octokit.request("GET /repos/{owner}/{repo}/issues", {
+      ...baseRequest,
+      page,
+    });
 
     const pageItems = (response.data as GitHubPr[]).filter(
       (item) => item.pull_request,
@@ -231,7 +226,7 @@ function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
  * @returns A ready-to-run GitHub search string covering plugin and theme merges.
  */
 function buildMergedSearchQuery(since: string): string {
-  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:plugin,theme`;
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:plugin`;
 }
 
 /**
@@ -294,7 +289,10 @@ function computeLatestMergedAt(
 ): string | null {
   let latest: string | null = null;
   for (const pr of merged) {
-    if (!latest || new Date(pr.mergedAt).getTime() > new Date(latest).getTime()) {
+    if (
+      !latest ||
+      new Date(pr.mergedAt).getTime() > new Date(latest).getTime()
+    ) {
       latest = pr.mergedAt;
     }
   }
@@ -385,11 +383,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
       logger.info(
         "[Ingest] Received 304 but cache is incomplete; retrying without ETag.",
       );
-      openResult = await fetchReadyForReviewPullRequests(
-        octokit,
-        logger,
-        null,
-      );
+      openResult = await fetchReadyForReviewPullRequests(octokit, logger, null);
     }
 
     let page1ETag = openResult.page1ETag ?? previousPage1ETag ?? null;
@@ -411,9 +405,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
     const previousMergedWatermark = previousSummary?.latestMergedAt ?? null;
     if (!mergedNeedsRefresh) {
       if (!previousMergedWatermark) {
-        logger.debug(
-          "[Ingest] Missing merged watermark; forcing refresh.",
-        );
+        logger.debug("[Ingest] Missing merged watermark; forcing refresh.");
         mergedNeedsRefresh = true;
       } else {
         mergedNeedsRefresh = await hasNewMergedPullRequests(
