@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.2] - 2025-10-29
 
 - add favicon
 - add default headers for security
