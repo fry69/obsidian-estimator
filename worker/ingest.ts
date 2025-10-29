@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import { RequestError } from "@octokit/request-error";
 import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
 import { GH_HEADERS_BASE, getGitHubAccessToken } from "./oauth";
 import {
@@ -19,6 +20,8 @@ const GITHUB_REPO = "obsidian-releases";
 
 type ReviewAssetType = (typeof REVIEW_TYPES)[number];
 type ReviewAssetTypeWithFallback = ReviewAssetType | "unknown";
+
+type IngestLogger = ReturnType<typeof createIngestLogger>;
 
 // This interface is a subset of the GitHub API response for search results
 // and is what we'll use for type safety in our application.
@@ -59,15 +62,126 @@ interface IngestResult {
  * @param q - The GitHub search query string to execute.
  * @returns All search items returned by the API.
  */
+const SEARCH_PAGE_SIZE = 100;
+
 async function searchGitHubIssues(
   octokit: Octokit,
   q: string,
+  logger: IngestLogger,
 ): Promise<GitHubPr[]> {
-  const results = await octokit.paginate("GET /search/issues", {
-    q,
-    per_page: 100,
-  });
-  return results as GitHubPr[];
+  const aggregated: GitHubPr[] = [];
+  let page = 1;
+
+  while (true) {
+    const response = await octokit.request("GET /search/issues", {
+      q,
+      per_page: SEARCH_PAGE_SIZE,
+      page,
+    });
+
+    const { items, total_count } = response.data as {
+      items: GitHubPr[];
+      total_count: number;
+    };
+
+    aggregated.push(...items);
+    logger.debug(
+      `[GitHub] search page ${page} fetched ${items.length} items (total so far ${aggregated.length}/${total_count}).`,
+    );
+
+    if (aggregated.length >= Math.min(total_count, 1000)) {
+      break;
+    }
+    if (items.length < SEARCH_PAGE_SIZE) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return aggregated;
+}
+
+const ISSUES_PAGE_SIZE = 100;
+
+interface ReadyForReviewFetchResult {
+  prs: GitHubPr[];
+  page1ETag: string | null;
+  notModified: boolean;
+}
+
+async function fetchReadyForReviewPullRequests(
+  octokit: Octokit,
+  logger: IngestLogger,
+  ifNoneMatch: string | null,
+): Promise<ReadyForReviewFetchResult> {
+  const baseRequest = {
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+    state: "open" as const,
+    labels: READY_FOR_REVIEW_LABEL,
+    per_page: ISSUES_PAGE_SIZE,
+    sort: "updated" as const,
+    direction: "desc" as const,
+  };
+
+  let page1Response;
+  try {
+    page1Response = await octokit.request(
+      "GET /repos/{owner}/{repo}/issues",
+      ifNoneMatch
+        ? {
+            ...baseRequest,
+            page: 1,
+            headers: { "If-None-Match": ifNoneMatch },
+          }
+        : { ...baseRequest, page: 1 },
+    );
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 304) {
+      logger.info("[Ingest] Open queue unchanged (304). Skipping fetch.");
+      return {
+        prs: [],
+        page1ETag: ifNoneMatch ?? null,
+        notModified: true,
+      };
+    }
+    throw error;
+  }
+
+  const etag = page1Response.headers.etag ?? null;
+  const collected = (page1Response.data as GitHubPr[]).filter(
+    (item) => item.pull_request,
+  );
+
+  logger.debug(
+    `[GitHub] issues page 1 fetched ${collected.length} pull requests.`,
+  );
+
+  let page = 2;
+  let previousPageSize = collected.length;
+
+  while (previousPageSize === ISSUES_PAGE_SIZE) {
+    const response = await octokit.request(
+      "GET /repos/{owner}/{repo}/issues",
+      {
+        ...baseRequest,
+        page,
+      },
+    );
+
+    const pageItems = (response.data as GitHubPr[]).filter(
+      (item) => item.pull_request,
+    );
+    collected.push(...pageItems);
+    previousPageSize = pageItems.length;
+    logger.debug(
+      `[GitHub] issues page ${page} fetched ${pageItems.length} pull requests (total so far ${collected.length}).`,
+    );
+    page += 1;
+  }
+
+  return { prs: collected, page1ETag: etag, notModified: false };
 }
 
 /**
@@ -88,16 +202,6 @@ function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
 }
 
 /**
- * Build the GitHub search query for open items of a specific review type.
- *
- * @param type - The review queue label to query.
- * @returns A ready-to-run GitHub search string.
- */
-function buildOpenSearchQuery(type: ReviewAssetType): string {
-  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} state:open label:"${READY_FOR_REVIEW_LABEL}" label:${type}`;
-}
-
-/**
  * Build the GitHub search query for merged items after a given date.
  *
  * @param since - ISO date string (YYYY-MM-DD) to bound the merged date filter.
@@ -115,13 +219,15 @@ function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
  * @returns Sorted queue entries ordered by creation date (oldest first).
  */
 function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
-  const mapped = prs.map<QueuePullRequest>((pr) => ({
-    id: pr.number,
-    title: pr.title,
-    url: pr.html_url,
-    type: resolvePrType(pr),
-    createdAt: pr.created_at,
-  }));
+  const mapped = prs
+    .map<QueuePullRequest>((pr) => ({
+      id: pr.number,
+      title: pr.title,
+      url: pr.html_url,
+      type: resolvePrType(pr),
+      createdAt: pr.created_at,
+    }))
+    .filter((pr) => pr.type !== "unknown");
 
   return mapped.sort((a, b) => {
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -229,9 +335,49 @@ export async function ingest(env: Env): Promise<IngestResult> {
   });
 
   try {
-    logger.info("[Ingest] Fetching open plugins and themes...");
-    const openPluginsQuery = buildOpenSearchQuery("plugin");
-    const openThemesQuery = buildOpenSearchQuery("theme");
+    const previousSummary = await readQueueSummary(env);
+    const previousPage1ETag = previousSummary?.page1ETag ?? null;
+
+    logger.info("[Ingest] Fetching Ready for review pull requests...");
+    let openResult = await fetchReadyForReviewPullRequests(
+      octokit,
+      logger,
+      previousPage1ETag,
+    );
+
+    if (openResult.notModified && !previousSummary) {
+      logger.info(
+        "[Ingest] Received 304 but no cached summary; retrying without ETag.",
+      );
+      openResult = await fetchReadyForReviewPullRequests(
+        octokit,
+        logger,
+        null,
+      );
+    }
+
+    if (openResult.notModified && previousSummary) {
+      const nowIso = new Date().toISOString();
+      const refreshedSummary: QueueSummary = {
+        ...previousSummary,
+        checkedAt: nowIso,
+        page1ETag: previousSummary.page1ETag ?? null,
+      };
+      await writeQueueSummary(env, refreshedSummary);
+      summaryUpdated = true;
+      const message =
+        "[Ingest] No changes detected via page-1 ETag. Summary timestamp refreshed.";
+      logger.info(message);
+      return {
+        ok: true,
+        message,
+        logs: logger.entries,
+        detailsUpdated,
+        summaryUpdated,
+        detailsVersion: previousSummary.detailsVersion,
+        checkedAt: nowIso,
+      };
+    }
 
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
@@ -242,15 +388,20 @@ export async function ingest(env: Env): Promise<IngestResult> {
     );
     const mergedThemesQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
 
-    // Fetch queries sequentially as per GitHub API best practices
-    // https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api
-    const openPlugins = await searchGitHubIssues(octokit, openPluginsQuery);
-    const openThemes = await searchGitHubIssues(octokit, openThemesQuery);
-    const mergedPlugins = await searchGitHubIssues(octokit, mergedPluginsQuery);
-    const mergedThemes = await searchGitHubIssues(octokit, mergedThemesQuery);
+    logger.info("[Ingest] Fetching merged history...");
+    const mergedPlugins = await searchGitHubIssues(
+      octokit,
+      mergedPluginsQuery,
+      logger,
+    );
+    const mergedThemes = await searchGitHubIssues(
+      octokit,
+      mergedThemesQuery,
+      logger,
+    );
 
     const queueDetails: QueueDetails = {
-      openPrs: buildOpenPrPayload([...openPlugins, ...openThemes]),
+      openPrs: buildOpenPrPayload(openResult.prs),
       mergedPrs: buildMergedPrPayload([...mergedPlugins, ...mergedThemes]),
     };
 
@@ -258,7 +409,6 @@ export async function ingest(env: Env): Promise<IngestResult> {
     const detailsVersion = await hashString(detailsJson);
     const nowIso = new Date().toISOString();
 
-    const previousSummary = await readQueueSummary(env);
     let detailsUpdatedAt = previousSummary?.detailsUpdatedAt ?? nowIso;
 
     if (!previousSummary || previousSummary.detailsVersion !== detailsVersion) {
@@ -294,6 +444,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
       checkedAt: nowIso,
       detailsVersion,
       detailsUpdatedAt,
+      page1ETag: openResult.page1ETag,
       totals,
       waitEstimates,
       weeklyMerged,
