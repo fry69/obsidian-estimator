@@ -39,6 +39,7 @@ export interface QueueSummary {
   detailsVersion: string;
   detailsUpdatedAt: string;
   page1ETag: string | null;
+  latestMergedAt: string | null;
   totals: {
     readyTotal: number;
     readyPlugins: number;

@@ -7,6 +7,7 @@ import {
   type QueueMergedPullRequest,
   type QueuePullRequest,
   type QueueSummary,
+  readQueueDetails,
   readQueueSummary,
   writeQueueDetails,
   writeQueueSummary,
@@ -103,11 +104,33 @@ async function searchGitHubIssues(
 }
 
 const ISSUES_PAGE_SIZE = 100;
+const MERGED_HISTORY_LOOKBACK_MONTHS = 12;
 
 interface ReadyForReviewFetchResult {
   prs: GitHubPr[];
   page1ETag: string | null;
   notModified: boolean;
+}
+
+async function hasNewMergedPullRequests(
+  octokit: Octokit,
+  since: string,
+  logger: IngestLogger,
+): Promise<boolean> {
+  const query = buildMergedSearchQuery(since);
+  const response = await octokit.request("GET /search/issues", {
+    q: query,
+    per_page: 1,
+    sort: "updated",
+    order: "desc",
+  });
+
+  const { total_count } = response.data as { total_count: number };
+  const changed = total_count > 0;
+  logger.debug(
+    `[GitHub] merged tripwire since ${since}: ${changed ? "changes detected" : "no changes"}.`,
+  );
+  return changed;
 }
 
 async function fetchReadyForReviewPullRequests(
@@ -205,11 +228,10 @@ function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
  * Build the GitHub search query for merged items after a given date.
  *
  * @param since - ISO date string (YYYY-MM-DD) to bound the merged date filter.
- * @param type - The review queue label to query.
- * @returns A ready-to-run GitHub search string.
+ * @returns A ready-to-run GitHub search string covering plugin and theme merges.
  */
-function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
-  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:${type}`;
+function buildMergedSearchQuery(since: string): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:plugin,theme`;
 }
 
 /**
@@ -265,6 +287,18 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
   return mapped.sort((a, b) => {
     return new Date(a.mergedAt).getTime() - new Date(b.mergedAt).getTime();
   });
+}
+
+function computeLatestMergedAt(
+  merged: QueueMergedPullRequest[],
+): string | null {
+  let latest: string | null = null;
+  for (const pr of merged) {
+    if (!latest || new Date(pr.mergedAt).getTime() > new Date(latest).getTime()) {
+      latest = pr.mergedAt;
+    }
+  }
+  return latest;
 }
 
 /**
@@ -336,6 +370,8 @@ export async function ingest(env: Env): Promise<IngestResult> {
 
   try {
     const previousSummary = await readQueueSummary(env);
+    const previousDetails = await readQueueDetails(env);
+
     const previousPage1ETag = previousSummary?.page1ETag ?? null;
 
     logger.info("[Ingest] Fetching Ready for review pull requests...");
@@ -345,9 +381,9 @@ export async function ingest(env: Env): Promise<IngestResult> {
       previousPage1ETag,
     );
 
-    if (openResult.notModified && !previousSummary) {
+    if (openResult.notModified && (!previousSummary || !previousDetails)) {
       logger.info(
-        "[Ingest] Received 304 but no cached summary; retrying without ETag.",
+        "[Ingest] Received 304 but cache is incomplete; retrying without ETag.",
       );
       openResult = await fetchReadyForReviewPullRequests(
         octokit,
@@ -356,54 +392,64 @@ export async function ingest(env: Env): Promise<IngestResult> {
       );
     }
 
-    if (openResult.notModified && previousSummary) {
-      const nowIso = new Date().toISOString();
-      const refreshedSummary: QueueSummary = {
-        ...previousSummary,
-        checkedAt: nowIso,
-        page1ETag: previousSummary.page1ETag ?? null,
-      };
-      await writeQueueSummary(env, refreshedSummary);
-      summaryUpdated = true;
-      const message =
-        "[Ingest] No changes detected via page-1 ETag. Summary timestamp refreshed.";
-      logger.info(message);
-      return {
-        ok: true,
-        message,
-        logs: logger.entries,
-        detailsUpdated,
-        summaryUpdated,
-        detailsVersion: previousSummary.detailsVersion,
-        checkedAt: nowIso,
-      };
+    let page1ETag = openResult.page1ETag ?? previousPage1ETag ?? null;
+
+    let openPrs: QueuePullRequest[];
+    if (openResult.notModified) {
+      if (!previousDetails) {
+        throw new Error(
+          "Open queue unchanged but no cached queue details available.",
+        );
+      }
+      openPrs = previousDetails.openPrs;
+    } else {
+      openPrs = buildOpenPrPayload(openResult.prs);
+      page1ETag = openResult.page1ETag;
     }
 
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-    const mergedQueryDate = twelveMonthsAgo.toISOString().slice(0, 10);
-    const mergedPluginsQuery = buildMergedSearchQuery(
-      mergedQueryDate,
-      "plugin",
-    );
-    const mergedThemesQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
+    let mergedNeedsRefresh = !previousDetails;
+    const previousMergedWatermark = previousSummary?.latestMergedAt ?? null;
+    if (!mergedNeedsRefresh) {
+      if (!previousMergedWatermark) {
+        logger.debug(
+          "[Ingest] Missing merged watermark; forcing refresh.",
+        );
+        mergedNeedsRefresh = true;
+      } else {
+        mergedNeedsRefresh = await hasNewMergedPullRequests(
+          octokit,
+          previousMergedWatermark,
+          logger,
+        );
+      }
+    }
 
-    logger.info("[Ingest] Fetching merged history...");
-    const mergedPlugins = await searchGitHubIssues(
-      octokit,
-      mergedPluginsQuery,
-      logger,
-    );
-    const mergedThemes = await searchGitHubIssues(
-      octokit,
-      mergedThemesQuery,
-      logger,
-    );
+    let mergedPrs: QueueMergedPullRequest[];
+    if (mergedNeedsRefresh) {
+      logger.info("[Ingest] Fetching merged history...");
+      const mergedSince = new Date();
+      mergedSince.setMonth(
+        mergedSince.getMonth() - MERGED_HISTORY_LOOKBACK_MONTHS,
+      );
+      const mergedQueryDate = mergedSince.toISOString().slice(0, 10);
+      const mergedQuery = buildMergedSearchQuery(mergedQueryDate);
+      const mergedResults = await searchGitHubIssues(
+        octokit,
+        mergedQuery,
+        logger,
+      );
+      mergedPrs = buildMergedPrPayload(mergedResults);
+    } else {
+      logger.info("[Ingest] Merged history unchanged; reusing cached data.");
+      mergedPrs = previousDetails!.mergedPrs;
+    }
 
     const queueDetails: QueueDetails = {
-      openPrs: buildOpenPrPayload(openResult.prs),
-      mergedPrs: buildMergedPrPayload([...mergedPlugins, ...mergedThemes]),
+      openPrs,
+      mergedPrs,
     };
+
+    const latestMergedAt = computeLatestMergedAt(queueDetails.mergedPrs);
 
     const detailsJson = JSON.stringify(queueDetails);
     const detailsVersion = await hashString(detailsJson);
@@ -444,7 +490,8 @@ export async function ingest(env: Env): Promise<IngestResult> {
       checkedAt: nowIso,
       detailsVersion,
       detailsUpdatedAt,
-      page1ETag: openResult.page1ETag,
+      page1ETag: page1ETag,
+      latestMergedAt,
       totals,
       waitEstimates,
       weeklyMerged,
