@@ -98,6 +98,13 @@ KV entries:
 - the full PR details blob used by the tables (`/api/details`), which is only
   rewritten when the upstream data actually changes
 
+- Open queue data is pulled via the repo `issues` endpoint using manual
+  pagination. The worker stores page 1’s ETag in the summary record; a `304`
+  response lets us skip re-fetching the queue entirely.
+- Merged history relies on search queries. A cached watermark tracks the latest
+  merge timestamp; when it hasn’t advanced, the worker reuses the existing KV
+  payload. Any change triggers a full rebuild to stay consistent.
+
 The frontend polls the summary key and only requests the detailed payload when a
 new version is available, keeping the initial load fast even when the queue is
 large.
@@ -119,5 +126,7 @@ curl -X POST "<your-worker-url>.workers.dev/api/trigger" \
 
 When developing locally, replace the hostname with the URL printed by
 `npm run dev` (often `http://127.0.0.1:5173`). A successful request returns HTTP
-202 while the ingest job runs in the background. The ingestion process can take
-up to a minute depending on queue size.
+202 while the ingest job runs in the background. Append `?force=1` (or send
+`{ "force": true }` in a JSON body) to bypass cached ETag/merge tripwires when
+you need a full refresh. The ingestion process can take up to a minute depending
+on queue size.
