@@ -117,10 +117,12 @@ async function hasNewMergedPullRequests(
   since: string,
   logger: IngestLogger,
 ): Promise<boolean> {
-  const query = buildMergedSearchQuery(since);
+  const query = buildMergedTripwireQuery(since);
   const response = await octokit.request("GET /search/issues", {
     q: query,
     per_page: 1,
+    sort: "updated",
+    order: "desc",
   });
 
   const { total_count } = response.data as { total_count: number };
@@ -223,10 +225,21 @@ function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
  * Build the GitHub search query for merged items after a given date.
  *
  * @param since - ISO date string (YYYY-MM-DD) to bound the merged date filter.
- * @returns A ready-to-run GitHub search string covering plugin and theme merges.
+ * @returns A tripwire query detecting any merged PRs after the given date.
  */
-function buildMergedSearchQuery(since: string): string {
-  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:plugin`;
+function buildMergedTripwireQuery(since: string): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since}`;
+}
+
+/**
+ * Build the GitHub search query for merged items after a given date for a specific queue.
+ *
+ * @param since - ISO date string (YYYY-MM-DD) to bound the merged date filter.
+ * @param type - The queue label (plugin or theme).
+ * @returns A ready-to-run GitHub search string.
+ */
+function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:${type}`;
 }
 
 /**
@@ -258,8 +271,16 @@ function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
  * @returns Sorted queue history entries ordered by merge date (oldest first).
  */
 function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
+  const seen = new Set<number>();
   const mapped = prs
     .filter((pr) => pr.pull_request && pr.pull_request.merged_at)
+    .filter((pr) => {
+      if (seen.has(pr.number)) {
+        return false;
+      }
+      seen.add(pr.number);
+      return true;
+    })
     .map<QueueMergedPullRequest>((pr) => {
       const createdAt = new Date(pr.created_at);
       const mergedAtIso = pr.pull_request!.merged_at!;
@@ -424,13 +445,22 @@ export async function ingest(env: Env): Promise<IngestResult> {
         mergedSince.getMonth() - MERGED_HISTORY_LOOKBACK_MONTHS,
       );
       const mergedQueryDate = mergedSince.toISOString().slice(0, 10);
-      const mergedQuery = buildMergedSearchQuery(mergedQueryDate);
-      const mergedResults = await searchGitHubIssues(
+      const mergedPluginQuery = buildMergedSearchQuery(
+        mergedQueryDate,
+        "plugin",
+      );
+      const mergedThemeQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
+      const mergedPlugins = await searchGitHubIssues(
         octokit,
-        mergedQuery,
+        mergedPluginQuery,
         logger,
       );
-      mergedPrs = buildMergedPrPayload(mergedResults);
+      const mergedThemes = await searchGitHubIssues(
+        octokit,
+        mergedThemeQuery,
+        logger,
+      );
+      mergedPrs = buildMergedPrPayload([...mergedPlugins, ...mergedThemes]);
     } else {
       logger.info("[Ingest] Merged history unchanged; reusing cached data.");
       mergedPrs = previousDetails!.mergedPrs;
