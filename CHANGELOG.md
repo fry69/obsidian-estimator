@@ -4,6 +4,7 @@
 
 - add favicon
 - add default headers for security
+- refactor logging
 
 ## [0.7.1] - 2025-10-28
 
