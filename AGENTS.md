@@ -79,7 +79,7 @@ Cloudflare.
 - **Styling:** **Tailwind CSS** is used for styling. Configuration is in
   `tailwind.config.js`.
 - **API:** The backend exposes a JSON API. The routes are defined in
-  `worker/index.ts` using the Hono framework.
+  `worker/api.ts` using the `URLPattern` API.
 - **Storage:** Queue state is saved in Cloudflare KV as two keys: a lightweight
   summary (totals, wait estimates, chart data, version metadata) and the full PR
   details blob. The ingest worker computes both and only rewrites the large

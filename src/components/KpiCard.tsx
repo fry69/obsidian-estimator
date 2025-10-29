@@ -23,9 +23,9 @@ const KpiCard: React.FC<KpiCardProps> = ({
 }) => {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-6 text-center shadow-[var(--shadow-soft)] transition-[background-color,border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-hover)]">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-[color:var(--muted)]">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-[color:var(--muted)]">
         {title}
-      </h3>
+      </h2>
       <p className={`text-5xl font-bold ${color}`}>
         {value}
         {subtitle && (
