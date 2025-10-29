@@ -55,7 +55,10 @@ async function respondWithDetailsJson(env: Env): Promise<Response> {
   }
 }
 
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
 async function triggerIngest(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
   const authHeader = request.headers.get("Authorization") ?? "";
 
   if (!authHeader.startsWith("Bearer ")) {
@@ -68,8 +71,35 @@ async function triggerIngest(request: Request, env: Env): Promise<Response> {
     return Response.json({ error: "Invalid bearer token" }, { status: 403 });
   }
 
+  let force = false;
+  const forceParam = url.searchParams.get("force");
+  if (forceParam) {
+    const normalized = forceParam.trim().toLowerCase();
+    force = TRUE_VALUES.has(normalized);
+  }
+
+  if (!force) {
+    const contentType = request.headers.get("Content-Type") ?? "";
+    if (contentType.includes("application/json")) {
+      try {
+        const body = (await request.json()) as { force?: unknown };
+        if (typeof body.force === "boolean") {
+          force = body.force;
+        } else if (typeof body.force === "string") {
+          const normalized = body.force.trim().toLowerCase();
+          force = TRUE_VALUES.has(normalized);
+        }
+      } catch (error) {
+        console.warn(
+          "[Trigger] Failed to parse JSON body for /api/trigger",
+          error,
+        );
+      }
+    }
+  }
+
   try {
-    const result = await ingest(env);
+    const result = await ingest(env, { force });
     const status = result.ok ? 202 : 500;
     return Response.json(result, { status });
   } catch (error) {

@@ -51,6 +51,11 @@ interface IngestResult {
   summaryUpdated?: boolean;
   detailsVersion?: string;
   checkedAt?: string;
+  forced: boolean;
+}
+
+interface IngestOptions {
+  force?: boolean;
 }
 
 /**
@@ -347,10 +352,14 @@ async function hashString(value: string): Promise<string> {
  *
  * @param env - Worker bindings including KV namespace and OAuth secrets.
  */
-export async function ingest(env: Env): Promise<IngestResult> {
+export async function ingest(
+  env: Env,
+  options: IngestOptions = {},
+): Promise<IngestResult> {
   const logger = createIngestLogger();
   let detailsUpdated = false;
   let summaryUpdated = false;
+  const force = options.force === true;
 
   // Get a fresh user token
   const token = await getGitHubAccessToken(env);
@@ -391,7 +400,15 @@ export async function ingest(env: Env): Promise<IngestResult> {
     const previousSummary = await readQueueSummary(env);
     const previousDetails = await readQueueDetails(env);
 
-    const previousPage1ETag = previousSummary?.page1ETag ?? null;
+    if (force) {
+      logger.info(
+        "[Ingest] Force refresh requested; bypassing cache tripwires.",
+      );
+    }
+
+    const previousPage1ETag = force
+      ? null
+      : (previousSummary?.page1ETag ?? null);
 
     logger.info("[Ingest] Fetching Ready for review pull requests...");
     let openResult = await fetchReadyForReviewPullRequests(
@@ -422,7 +439,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
       page1ETag = openResult.page1ETag;
     }
 
-    let mergedNeedsRefresh = !previousDetails;
+    let mergedNeedsRefresh = force || !previousDetails;
     const previousMergedWatermark = previousSummary?.latestMergedAt ?? null;
     if (!mergedNeedsRefresh) {
       if (!previousMergedWatermark) {
@@ -532,6 +549,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
       summaryUpdated,
       detailsVersion,
       checkedAt: summary.checkedAt,
+      forced: force,
     };
   } catch (error) {
     const errorMessage =
@@ -544,6 +562,7 @@ export async function ingest(env: Env): Promise<IngestResult> {
       logs: logger.entries,
       detailsUpdated,
       summaryUpdated,
+      forced: force,
     };
   }
 }

@@ -5,6 +5,8 @@
 - add favicon
 - add default headers for security
 - refactor logging
+- improve caching strategy
+- add force flag to trigger endpoint
 
 ## [0.7.1] - 2025-10-28
 
