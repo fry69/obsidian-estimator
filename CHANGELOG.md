@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
--- add favicon
+- add favicon
+- add default headers for security
 
 ## [0.7.1] - 2025-10-28
 
