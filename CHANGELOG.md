@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- simplify retain logic
+- add sleep to allow KV writes to propagate
+
 ## [0.8.0] - 2025-10-31
 
 - add versioned API data endpoints

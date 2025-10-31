@@ -2,6 +2,10 @@ import { ingest } from "./ingest";
 import { handleRequest } from "./api";
 import { pruneDatasetVersions } from "./datasetCache";
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default {
   async fetch(
     request: Request,
@@ -31,8 +35,9 @@ export default {
     ctx.waitUntil(
       (async () => {
         try {
-          await pruneDatasetVersions(env.QUEUE_DATA, "queue-open", 8);
-          await pruneDatasetVersions(env.QUEUE_DATA, "queue-merged", 16);
+          await sleep(70_000);
+          await pruneDatasetVersions(env.QUEUE_DATA, "queue-open");
+          await pruneDatasetVersions(env.QUEUE_DATA, "queue-merged");
         } catch (error) {
           console.error("[Scheduled] Failed to prune dataset cache:", error);
         }

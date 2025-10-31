@@ -173,16 +173,21 @@ async function writeDatasetVersion(
 export async function pruneDatasetVersions(
   kv: KVNamespace,
   dataset: string,
-  retain: number,
 ): Promise<number> {
-  if (retain < 0) {
-    throw new Error("retain must be >= 0");
+  const safeName = assertValidDatasetName(dataset);
+  const pointer = await readDatasetPointer(kv, safeName);
+  if (!pointer) {
+    console.warn(
+      `[Dataset] Cannot prune "${dataset}" because the pointer is missing or invalid.`,
+    );
+    return 0;
   }
 
-  const safeName = assertValidDatasetName(dataset);
+  const currentContentKey = contentKey(safeName, pointer.version);
   const prefix = `data/${safeName}:content:`;
 
-  const keys: Array<{ name: string; updatedAt: string | null }> = [];
+  const toDelete: string[] = [];
+  let hasCurrentVersion = false;
   let cursor: string | null = null;
 
   do {
@@ -190,32 +195,27 @@ export async function pruneDatasetVersions(
       cursor !== null ? { prefix, cursor } : { prefix };
     const result: KVNamespaceListResult<unknown> = await kv.list(options);
     cursor = result.list_complete ? null : (result.cursor ?? null);
+
     for (const record of result.keys) {
-      const metadata = record.metadata as
-        | { updatedAt?: string | null }
-        | undefined;
-      keys.push({
-        name: record.name,
-        updatedAt:
-          typeof metadata?.updatedAt === "string" ? metadata.updatedAt : null,
-      });
+      if (record.name === currentContentKey) {
+        hasCurrentVersion = true;
+        continue;
+      }
+      toDelete.push(record.name);
     }
   } while (cursor);
 
-  if (keys.length <= retain) {
+  if (!hasCurrentVersion) {
+    console.warn(
+      `[Dataset] Skipping prune for "${dataset}" because version "${pointer.version}" is missing.`,
+    );
     return 0;
   }
 
-  keys.sort((a, b) => {
-    if (a.updatedAt && b.updatedAt) {
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    }
-    if (a.updatedAt) return -1;
-    if (b.updatedAt) return 1;
-    return b.name.localeCompare(a.name);
-  });
+  if (toDelete.length === 0) {
+    return 0;
+  }
 
-  const toDelete = keys.slice(retain);
-  await Promise.all(toDelete.map((entry) => kv.delete(entry.name)));
+  await Promise.all(toDelete.map((name) => kv.delete(name)));
   return toDelete.length;
 }
