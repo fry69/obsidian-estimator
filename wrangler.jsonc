@@ -12,18 +12,6 @@
   "observability": {
     "enabled": true,
   },
-  "kv_namespaces": [
-    {
-      "binding": "QUEUE_DATA",
-      "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
-      "preview_id": "a8f9a5262b374409b663688987a8203c",
-    },
-    {
-      "binding": "GITHUB_APP_KV",
-      "id": "a372633f000743169659ed9d7c85d5c6",
-      "preview_id": "9446a67dbcd2432288f0673d4c1c1446",
-    },
-  ],
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -56,6 +44,7 @@
   // "assets": { "directory": "./public/", "binding": "ASSETS" },
   "env": {
     "production": {
+      "name": "obsidian-estimator",
       "kv_namespaces": [
         {
           "binding": "QUEUE_DATA",
