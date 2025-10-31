@@ -57,11 +57,15 @@ key to keep reads fast.
       - Installation target: choose **Any account**. Install it on any account
         you control; it does **not** need access to
         `obsidianmd/obsidian-releases`.
-    - After creating the app, download the generated private key (`.pem`) and
-      note both the **App ID** and the **Installation ID** (visible in the
-      installation URL or via `https://api.github.com/app/installations` when
-      authenticated as the app).
-5.  **Configure secrets and encrypted key material:**
+    - Download the generated private key (`.pem`) and note the **App ID** for
+      later steps.
+5.  **Install the GitHub App**
+    - After creating the app, install it on any account you control.
+      Installation is required to generate an installation ID. You can read the
+      number from the URL shown at
+      `https://github.com/settings/installations/<id>` after selecting your app
+      on that page.
+6.  **Configure secrets and encrypted key material:**
     - Store the numeric GitHub App identifiers as Worker secrets (repeat per
       environment). You can either set them manually:
       - `wrangler secret put GH_APP_ID`
@@ -71,17 +75,14 @@ key to keep reads fast.
       PEM locally, stores the random password in the Worker secret
       `GH_APP_KEY_PASSWORD`, and (optionally) writes the App/installation IDs
       for you:
-
       ```bash
       npm run upload:github-app-key -- --pem /path/to/github-app-private-key.pem \
         --app-id 123456 --installation-id 7890123
       ```
-
       Add `--env staging` to target the staging environment. The script writes
       to the `GITHUB_APP_KV` namespace and will overwrite any existing secret of
       the same key.
-
-6.  **Deploy:**
+7.  **Deploy:**
     - Production: `npm run deploy`
 
 ## Data Ingestion
