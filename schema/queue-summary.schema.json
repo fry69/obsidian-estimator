@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://obsidian-estimator.example.com/schema/queue-summary.schema.json",
+  "title": "QueueSummary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "checkedAt",
+    "page1ETag",
+    "latestMergedAt",
+    "totals",
+    "waitEstimates",
+    "weeklyMerged",
+    "datasets"
+  ],
+  "properties": {
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "page1ETag": {
+      "type": ["string", "null"]
+    },
+    "latestMergedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readyTotal", "readyPlugins", "readyThemes"],
+      "properties": {
+        "readyTotal": { "type": "integer", "minimum": 0 },
+        "readyPlugins": { "type": "integer", "minimum": 0 },
+        "readyThemes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "waitEstimates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin", "theme"],
+      "properties": {
+        "plugin": { "$ref": "#/$defs/waitEstimate" },
+        "theme": { "$ref": "#/$defs/waitEstimate" }
+      }
+    },
+    "weeklyMerged": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weekStarts", "pluginCounts", "themeCounts"],
+      "properties": {
+        "weekStarts": {
+          "type": "array",
+          "items": { "type": "string", "format": "date" }
+        },
+        "pluginCounts": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "themeCounts": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "datasets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["openQueue", "mergedHistory"],
+      "properties": {
+        "openQueue": {
+          "anyOf": [{ "$ref": "#/$defs/datasetPointer" }, { "type": "null" }]
+        },
+        "mergedHistory": {
+          "anyOf": [{ "$ref": "#/$defs/datasetPointer" }, { "type": "null" }]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "waitEstimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimatedDays", "range", "isHighVariance"],
+      "properties": {
+        "estimatedDays": {
+          "type": ["number", "null"]
+        },
+        "range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lower", "upper"],
+          "properties": {
+            "lower": { "type": ["number", "null"] },
+            "upper": { "type": ["number", "null"] }
+          }
+        },
+        "isHighVariance": {
+          "type": "boolean"
+        }
+      }
+    },
+    "datasetPointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "version", "url", "updatedAt", "size"],
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9-_]{0,62}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,126}$"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{8,128}$"
+        }
+      }
+    }
+  }
+}

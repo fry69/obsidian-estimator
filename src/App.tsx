@@ -1,10 +1,14 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type {
-  QueueDetailsResponse,
-  QueueSummary,
-  SubmissionFilter,
-  WaitEstimateSummary,
+import {
+  openQueueDatasetSchema,
+  mergedQueueDatasetSchema,
+  type DatasetPointerSummary,
+  type MergedPullRequest,
+  type PullRequest,
+  type QueueSummary,
+  type SubmissionFilter,
+  type WaitEstimate,
 } from "./types";
 import { isSubmissionFilter } from "./types";
 import KpiCard from "./components/KpiCard";
@@ -14,13 +18,22 @@ import ThemeToggle from "./components/ThemeToggle";
 import { useTheme } from "./hooks/useTheme";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { fetchQueueSummary } from "./lib/fetchQueueSummary";
-import { fetchQueueDetails } from "./lib/fetchQueueDetails";
+import { fetchDataset } from "./lib/datasetClient";
 import { formatAbsoluteDate, useRelativeTime } from "./hooks/useRelativeTime";
 
 type TableVariant = "queue" | "merged";
 
 const isTableVariant = (value: string): value is TableVariant => {
   return value === "queue" || value === "merged";
+};
+
+const assertPointer = (
+  pointer: DatasetPointerSummary | null,
+): DatasetPointerSummary => {
+  if (!pointer) {
+    throw new Error("Dataset pointer is unavailable");
+  }
+  return pointer;
 };
 
 function App() {
@@ -65,30 +78,59 @@ function App() {
     staleTime: 1000 * 60 * 30,
   });
 
-  const detailsVersion = summary?.detailsVersion ?? null;
+  const openPointer = summary?.datasets?.openQueue ?? null;
+  const mergedPointer = summary?.datasets?.mergedHistory ?? null;
 
   const {
-    data: details,
-    isPending: isDetailsPending,
-    error: detailsError,
-  } = useQuery<QueueDetailsResponse>({
-    queryKey: ["queue-details", detailsVersion],
-    queryFn: () => fetchQueueDetails(detailsVersion ?? undefined),
-    enabled: Boolean(detailsVersion),
+    data: openPrData,
+    error: openError,
+    isPending: openPending,
+  } = useQuery<PullRequest[]>({
+    queryKey: ["queue-open", openPointer?.version],
+    queryFn: () =>
+      fetchDataset(assertPointer(openPointer), openQueueDatasetSchema),
+    enabled: Boolean(openPointer),
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
   });
 
-  const openPrs = useMemo(() => details?.openPrs ?? [], [details]);
-  const mergedPrs = useMemo(() => details?.mergedPrs ?? [], [details]);
+  const {
+    data: mergedPrData,
+    error: mergedError,
+    isPending: mergedPending,
+  } = useQuery<MergedPullRequest[]>({
+    queryKey: ["queue-merged", mergedPointer?.version],
+    queryFn: () =>
+      fetchDataset(assertPointer(mergedPointer), mergedQueueDatasetSchema),
+    enabled: Boolean(mergedPointer),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
 
-  const detailsErrorMessage =
-    detailsError instanceof Error
-      ? detailsError.message
-      : detailsError
-        ? "Unknown error"
-        : null;
+  const openPrs = useMemo(() => openPrData ?? [], [openPrData]);
+  const mergedPrs = useMemo(() => mergedPrData ?? [], [mergedPrData]);
+
+  const datasetsAvailable = Boolean(openPointer) && Boolean(mergedPointer);
+  const isDatasetsPending = !datasetsAvailable || openPending || mergedPending;
+
+  const datasetErrorMessage = (() => {
+    if (!datasetsAvailable) {
+      return null;
+    }
+    if (openError) {
+      return openError instanceof Error
+        ? openError.message
+        : "Failed to load open queue dataset";
+    }
+    if (mergedError) {
+      return mergedError instanceof Error
+        ? mergedError.message
+        : "Failed to load merged dataset";
+    }
+    return null;
+  })();
 
   const recentMergedPrs = useMemo(() => {
     const sevenDaysAgo = new Date();
@@ -100,14 +142,14 @@ function App() {
     );
   }, [mergedPrs]);
 
-  const formatWaitValue = (estimate?: WaitEstimateSummary) => {
+  const formatWaitValue = (estimate?: WaitEstimate) => {
     if (!estimate) {
       return "–";
     }
     return estimate.estimatedDays ?? "∞";
   };
 
-  const formatWaitRange = (estimate?: WaitEstimateSummary) => {
+  const formatWaitRange = (estimate?: WaitEstimate) => {
     if (!estimate) {
       return "";
     }
@@ -161,10 +203,23 @@ function App() {
     return { labels, datasets };
   }, [summary, chartFilter]);
 
+  const latestDatasetUpdate = useMemo(() => {
+    const timestamps = [
+      openPointer?.updatedAt ?? null,
+      mergedPointer?.updatedAt ?? null,
+    ].filter((value): value is string => Boolean(value));
+    if (timestamps.length === 0) {
+      return null;
+    }
+    return timestamps.reduce((latest, ts) => {
+      return new Date(ts).getTime() > new Date(latest).getTime() ? ts : latest;
+    });
+  }, [openPointer, mergedPointer]);
+
   const checkedRelative = useRelativeTime(summary?.checkedAt);
-  const changedRelative = useRelativeTime(summary?.detailsUpdatedAt);
+  const changedRelative = useRelativeTime(latestDatasetUpdate);
   const checkedAbsolute = formatAbsoluteDate(summary?.checkedAt);
-  const changedAbsolute = formatAbsoluteDate(summary?.detailsUpdatedAt);
+  const changedAbsolute = formatAbsoluteDate(latestDatasetUpdate);
 
   const tableTabs: Array<{ id: TableVariant; label: string }> = [
     { id: "merged", label: "Merged (7d)" },
@@ -299,13 +354,13 @@ function App() {
                   })}
                 </nav>
               </div>
-              {isDetailsPending ? (
+              {isDatasetsPending ? (
                 <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--muted)]">
                   Loading detailed pull requests…
                 </div>
-              ) : detailsErrorMessage ? (
+              ) : datasetErrorMessage ? (
                 <div className="rounded-2xl border border-red-400/40 bg-red-400/10 px-4 py-6 text-sm text-red-300">
-                  Failed to load detailed pull requests: {detailsErrorMessage}
+                  Failed to load detailed pull requests: {datasetErrorMessage}
                 </div>
               ) : activeTable === "queue" ? (
                 <PullRequestTable

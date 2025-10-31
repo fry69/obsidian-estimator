@@ -3,21 +3,38 @@ import { RequestError } from "@octokit/request-error";
 import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
 import { GH_HEADERS_BASE, getGitHubAccessToken } from "./oauth";
 import {
-  type QueueDetails,
-  type QueueMergedPullRequest,
-  type QueuePullRequest,
+  type MergedPullRequest,
+  type PullRequest,
   type QueueSummary,
-  readQueueDetails,
-  readQueueSummary,
-  writeQueueDetails,
-  writeQueueSummary,
-} from "./queueStore";
+} from "../shared/queueSchema";
+import { readQueueSummary, writeQueueSummary } from "./queueStore";
+import {
+  readDatasetJSON,
+  writeDatasetJSON,
+  type DatasetPointer,
+} from "./datasetCache";
 import { type IngestLogEntry, createIngestLogger, describeError } from "./log";
 
 const REVIEW_TYPES = ["plugin", "theme"] as const;
 const READY_FOR_REVIEW_LABEL = "Ready for review";
 const GITHUB_OWNER = "obsidianmd";
 const GITHUB_REPO = "obsidian-releases";
+const OPEN_QUEUE_DATASET = "queue-open";
+const MERGED_HISTORY_DATASET = "queue-merged";
+
+function normalizeBaseUrl(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const normalized = new URL(raw);
+    return normalized.toString();
+  } catch (error) {
+    console.warn(
+      `[Ingest] Ignoring invalid PUBLIC_BASE_URL value "${raw}":`,
+      error,
+    );
+    return undefined;
+  }
+}
 
 type ReviewAssetType = (typeof REVIEW_TYPES)[number];
 type ReviewAssetTypeWithFallback = ReviewAssetType | "unknown";
@@ -47,9 +64,11 @@ interface IngestResult {
   message: string;
   logs: IngestLogEntry[];
   error?: string;
-  detailsUpdated?: boolean;
   summaryUpdated?: boolean;
-  detailsVersion?: string;
+  openDatasetUpdated?: boolean;
+  mergedDatasetUpdated?: boolean;
+  openDatasetVersion?: string;
+  mergedDatasetVersion?: string;
   checkedAt?: string;
   forced: boolean;
 }
@@ -253,9 +272,9 @@ function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
  * @param prs - Raw GitHub search results representing open PRs.
  * @returns Sorted queue entries ordered by creation date (oldest first).
  */
-function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
+function buildOpenPrPayload(prs: GitHubPr[]): PullRequest[] {
   const mapped = prs
-    .map<QueuePullRequest>((pr) => ({
+    .map<PullRequest>((pr) => ({
       id: pr.number,
       title: pr.title,
       url: pr.html_url,
@@ -275,7 +294,7 @@ function buildOpenPrPayload(prs: GitHubPr[]): QueuePullRequest[] {
  * @param prs - Raw GitHub search results representing merged PRs.
  * @returns Sorted queue history entries ordered by merge date (oldest first).
  */
-function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
+function buildMergedPrPayload(prs: GitHubPr[]): MergedPullRequest[] {
   const seen = new Set<number>();
   const mapped = prs
     .filter((pr) => pr.pull_request && pr.pull_request.merged_at)
@@ -286,7 +305,7 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
       seen.add(pr.number);
       return true;
     })
-    .map<QueueMergedPullRequest>((pr) => {
+    .map<MergedPullRequest>((pr) => {
       const createdAt = new Date(pr.created_at);
       const mergedAtIso = pr.pull_request!.merged_at!;
       const mergedAt = new Date(mergedAtIso);
@@ -302,7 +321,7 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
         createdAt: pr.created_at,
         mergedAt: mergedAtIso,
         daysToMerge,
-      } satisfies QueueMergedPullRequest;
+      } satisfies MergedPullRequest;
     });
 
   return mapped.sort((a, b) => {
@@ -310,9 +329,7 @@ function buildMergedPrPayload(prs: GitHubPr[]): QueueMergedPullRequest[] {
   });
 }
 
-function computeLatestMergedAt(
-  merged: QueueMergedPullRequest[],
-): string | null {
+function computeLatestMergedAt(merged: MergedPullRequest[]): string | null {
   let latest: string | null = null;
   for (const pr of merged) {
     if (
@@ -357,9 +374,11 @@ export async function ingest(
   options: IngestOptions = {},
 ): Promise<IngestResult> {
   const logger = createIngestLogger();
-  let detailsUpdated = false;
+  let openDatasetUpdated = false;
+  let mergedDatasetUpdated = false;
   let summaryUpdated = false;
   const force = options.force === true;
+  const datasetBaseUrl = normalizeBaseUrl(env.PUBLIC_BASE_URL);
 
   // Get a fresh user token
   const token = await getGitHubAccessToken(env);
@@ -398,7 +417,9 @@ export async function ingest(
 
   try {
     const previousSummary = await readQueueSummary(env);
-    const previousDetails = await readQueueDetails(env);
+    const previousOpenPointer = previousSummary?.datasets?.openQueue ?? null;
+    const previousMergedPointer =
+      previousSummary?.datasets?.mergedHistory ?? null;
 
     if (force) {
       logger.info(
@@ -417,29 +438,33 @@ export async function ingest(
       previousPage1ETag,
     );
 
-    if (openResult.notModified && (!previousSummary || !previousDetails)) {
+    if (openResult.notModified && !previousOpenPointer) {
       logger.info(
-        "[Ingest] Received 304 but cache is incomplete; retrying without ETag.",
+        "[Ingest] Received 304 but no cached open dataset; retrying without ETag.",
       );
       openResult = await fetchReadyForReviewPullRequests(octokit, logger, null);
     }
 
     let page1ETag = openResult.page1ETag ?? previousPage1ETag ?? null;
 
-    let openPrs: QueuePullRequest[];
+    let openPrs: PullRequest[];
     if (openResult.notModified) {
-      if (!previousDetails) {
+      const cached = await readDatasetJSON<PullRequest[]>(
+        env.QUEUE_DATA,
+        OPEN_QUEUE_DATASET,
+      );
+      if (!cached) {
         throw new Error(
-          "Open queue unchanged but no cached queue details available.",
+          "Open queue unchanged but cached dataset unavailable in KV.",
         );
       }
-      openPrs = previousDetails.openPrs;
+      openPrs = cached;
     } else {
       openPrs = buildOpenPrPayload(openResult.prs);
       page1ETag = openResult.page1ETag;
     }
 
-    let mergedNeedsRefresh = force || !previousDetails;
+    let mergedNeedsRefresh = force || !previousMergedPointer;
     const previousMergedWatermark = previousSummary?.latestMergedAt ?? null;
     if (!mergedNeedsRefresh) {
       if (!previousMergedWatermark) {
@@ -454,7 +479,7 @@ export async function ingest(
       }
     }
 
-    let mergedPrs: QueueMergedPullRequest[];
+    let mergedPrs: MergedPullRequest[];
     if (mergedNeedsRefresh) {
       logger.info("[Ingest] Fetching merged history...");
       const mergedSince = new Date();
@@ -480,32 +505,63 @@ export async function ingest(
       mergedPrs = buildMergedPrPayload([...mergedPlugins, ...mergedThemes]);
     } else {
       logger.info("[Ingest] Merged history unchanged; reusing cached data.");
-      mergedPrs = previousDetails!.mergedPrs;
+      const cached = await readDatasetJSON<MergedPullRequest[]>(
+        env.QUEUE_DATA,
+        MERGED_HISTORY_DATASET,
+      );
+      if (!cached) {
+        throw new Error("Merged dataset expected but not found in KV storage.");
+      }
+      mergedPrs = cached;
     }
 
-    const queueDetails: QueueDetails = {
-      openPrs,
-      mergedPrs,
-    };
-
-    const latestMergedAt = computeLatestMergedAt(queueDetails.mergedPrs);
-
-    const detailsJson = JSON.stringify(queueDetails);
-    const detailsVersion = await hashString(detailsJson);
+    const latestMergedAt = computeLatestMergedAt(mergedPrs);
     const nowIso = new Date().toISOString();
 
-    let detailsUpdatedAt = previousSummary?.detailsUpdatedAt ?? nowIso;
+    const openVersion = await hashString(JSON.stringify(openPrs));
+    const mergedVersion = await hashString(JSON.stringify(mergedPrs));
 
-    if (!previousSummary || previousSummary.detailsVersion !== detailsVersion) {
-      await writeQueueDetails(env, queueDetails);
-      detailsUpdatedAt = nowIso;
-      detailsUpdated = true;
-      logger.info(`[Ingest] Details updated (version ${detailsVersion})`);
-    } else {
-      logger.debug("[Ingest] No changes detected, details update skipped.");
+    let openPointer: DatasetPointer | null = previousOpenPointer;
+    if (!openPointer || openPointer.version !== openVersion) {
+      const openWriteOptions = {
+        updatedAt: nowIso,
+        hash: openVersion,
+        ...(datasetBaseUrl ? { baseUrl: datasetBaseUrl } : {}),
+      } as const;
+      openPointer = await writeDatasetJSON(
+        env.QUEUE_DATA,
+        OPEN_QUEUE_DATASET,
+        openVersion,
+        openPrs,
+        openWriteOptions,
+      );
+      openDatasetUpdated = true;
+      logger.info(
+        `[Ingest] Open queue dataset updated (version ${openVersion}).`,
+      );
     }
 
-    const totals = queueDetails.openPrs.reduce(
+    let mergedPointer: DatasetPointer | null = previousMergedPointer;
+    if (!mergedPointer || mergedPointer.version !== mergedVersion) {
+      const mergedWriteOptions = {
+        updatedAt: nowIso,
+        hash: mergedVersion,
+        ...(datasetBaseUrl ? { baseUrl: datasetBaseUrl } : {}),
+      } as const;
+      mergedPointer = await writeDatasetJSON(
+        env.QUEUE_DATA,
+        MERGED_HISTORY_DATASET,
+        mergedVersion,
+        mergedPrs,
+        mergedWriteOptions,
+      );
+      mergedDatasetUpdated = true;
+      logger.info(
+        `[Ingest] Merged history dataset updated (version ${mergedVersion}).`,
+      );
+    }
+
+    const totals = openPrs.reduce(
       (acc, pr) => {
         acc.readyTotal += 1;
         if (pr.type === "plugin") {
@@ -519,21 +575,23 @@ export async function ingest(
     );
 
     const waitEstimates = {
-      plugin: computeWaitEstimate(queueDetails.mergedPrs, "plugin"),
-      theme: computeWaitEstimate(queueDetails.mergedPrs, "theme"),
+      plugin: computeWaitEstimate(mergedPrs, "plugin"),
+      theme: computeWaitEstimate(mergedPrs, "theme"),
     };
 
-    const weeklyMerged = buildWeeklyMergedSummary(queueDetails.mergedPrs);
+    const weeklyMerged = buildWeeklyMergedSummary(mergedPrs);
 
     const summary: QueueSummary = {
       checkedAt: nowIso,
-      detailsVersion,
-      detailsUpdatedAt,
       page1ETag: page1ETag,
       latestMergedAt,
       totals,
       waitEstimates,
       weeklyMerged,
+      datasets: {
+        openQueue: openPointer,
+        mergedHistory: mergedPointer,
+      },
     };
 
     await writeQueueSummary(env, summary);
@@ -545,9 +603,11 @@ export async function ingest(
       ok: true,
       message: completeMessage,
       logs: logger.entries,
-      detailsUpdated,
       summaryUpdated,
-      detailsVersion,
+      openDatasetUpdated,
+      mergedDatasetUpdated,
+      openDatasetVersion: openPointer.version,
+      mergedDatasetVersion: mergedPointer.version,
       checkedAt: summary.checkedAt,
       forced: force,
     };
@@ -560,8 +620,9 @@ export async function ingest(
       message: errorMessage,
       error: describeError(error),
       logs: logger.entries,
-      detailsUpdated,
       summaryUpdated,
+      openDatasetUpdated,
+      mergedDatasetUpdated,
       forced: force,
     };
   }

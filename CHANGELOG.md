@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0] - 2025-10-31
+
+- add versioned API data endpoints
+- add dataset cache logic
+- add API schema validation
+
 ## [0.7.2] - 2025-10-29
 
 - add favicon

@@ -1,4 +1,4 @@
-import type { QueueSummary } from "../types";
+import { queueSummarySchema, type QueueSummary } from "../types";
 
 const SUMMARY_URL = "/api/summary";
 
@@ -14,5 +14,6 @@ export async function fetchQueueSummary(): Promise<QueueSummary> {
     throw new Error("Failed to fetch queue summary");
   }
 
-  return response.json();
+  const payload = await response.json();
+  return queueSummarySchema.parse(payload);
 }

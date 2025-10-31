@@ -1,12 +1,11 @@
-import type {
-  QueueMergedPullRequest,
-  WaitEstimate,
-  WeeklyMergedSummary,
-} from "./queueStore";
+import type { MergedPullRequest, WaitEstimate } from "../shared/queueSchema";
+import type { QueueSummary } from "../shared/queueSchema";
+
+type WeeklyMergedSummary = QueueSummary["weeklyMerged"];
 
 const VELOCITY_WEEKS = 12;
 
-function calculateStats(prs: QueueMergedPullRequest[]) {
+function calculateStats(prs: MergedPullRequest[]) {
   if (prs.length === 0) {
     return { mean: NaN, stdDev: NaN };
   }
@@ -21,7 +20,7 @@ function calculateStats(prs: QueueMergedPullRequest[]) {
 }
 
 export function computeWaitEstimate(
-  history: QueueMergedPullRequest[],
+  history: MergedPullRequest[],
   type: "plugin" | "theme",
 ): WaitEstimate {
   const now = new Date();
@@ -66,7 +65,7 @@ export function computeWaitEstimate(
 }
 
 export function buildWeeklyMergedSummary(
-  mergedPrs: QueueMergedPullRequest[],
+  mergedPrs: MergedPullRequest[],
   weeks: number = 12,
 ): WeeklyMergedSummary {
   const weeklyBuckets: Record<string, { plugins: number; themes: number }> = {};

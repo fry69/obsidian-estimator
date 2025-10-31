@@ -1,9 +1,19 @@
 import { ingest } from "./ingest";
-import { readQueueDetails, readQueueSummary } from "./queueStore";
+import {
+  readDatasetPointer,
+  readDatasetVersion,
+  type DatasetPointer,
+} from "./datasetCache";
+import { readQueueSummary } from "./queueStore";
 
 const summaryRoute = new URLPattern({ pathname: "/api/summary" });
-const detailsRoute = new URLPattern({ pathname: "/api/details" });
 const triggerRoute = new URLPattern({ pathname: "/api/trigger" });
+const pointerRoute = new URLPattern({
+  pathname: "/api/data/:dataset/current.json",
+});
+const versionRoute = new URLPattern({
+  pathname: "/data/:dataset.:version.json",
+});
 
 const CACHE_HEADERS = {
   "Cache-Control":
@@ -23,35 +33,6 @@ async function respondWithSummaryJson(env: Env): Promise<Response> {
   } catch (error) {
     console.error("Error fetching summary from KV:", error);
     return Response.json({ error: "Failed to fetch data" }, { status: 500 });
-  }
-}
-
-async function respondWithDetailsJson(env: Env): Promise<Response> {
-  try {
-    const [summary, details] = await Promise.all([
-      readQueueSummary(env),
-      readQueueDetails(env),
-    ]);
-
-    if (!details) {
-      return Response.json(
-        { error: "Details not yet available" },
-        { status: 503 },
-      );
-    }
-
-    return Response.json(
-      {
-        version: summary?.detailsVersion ?? null,
-        updatedAt: summary?.detailsUpdatedAt ?? null,
-        openPrs: details.openPrs,
-        mergedPrs: details.mergedPrs,
-      },
-      { headers: CACHE_HEADERS },
-    );
-  } catch (error) {
-    console.error("Error fetching details from KV:", error);
-    return Response.json({ error: "Failed to fetch details" }, { status: 500 });
   }
 }
 
@@ -121,8 +102,28 @@ export async function handleRequest(
     return respondWithSummaryJson(env);
   }
 
-  if (request.method === "GET" && detailsRoute.test(url)) {
-    return respondWithDetailsJson(env);
+  if (request.method === "GET") {
+    const pointerMatch = pointerRoute.exec(url);
+    if (pointerMatch) {
+      const dataset = pointerMatch.pathname.groups?.["dataset"];
+      if (!dataset) {
+        return new Response("Dataset missing", { status: 400 });
+      }
+      return respondWithPointer(request, env, dataset);
+    }
+  }
+
+  if (request.method === "GET") {
+    const versionMatch = versionRoute.exec(url);
+    if (versionMatch) {
+      const groups = versionMatch.pathname.groups;
+      const dataset = groups?.["dataset"];
+      const version = groups?.["version"];
+      if (!dataset || !version) {
+        return new Response("Dataset or version missing", { status: 400 });
+      }
+      return respondWithVersionedBlob(env, request, dataset, version);
+    }
   }
 
   if (request.method === "POST" && triggerRoute.test(url)) {
@@ -130,4 +131,69 @@ export async function handleRequest(
   }
 
   return fetch(request);
+}
+
+async function respondWithPointer(
+  request: Request,
+  env: Env,
+  dataset: string,
+): Promise<Response> {
+  try {
+    const pointer = await readDatasetPointer(env.QUEUE_DATA, dataset);
+    if (!pointer) {
+      return Response.json({ error: "Dataset not found" }, { status: 404 });
+    }
+
+    const etag = `W/"${pointer.version}"`;
+    if (request.headers.get("If-None-Match") === etag) {
+      return new Response(null, { status: 304, headers: { ETag: etag } });
+    }
+
+    const body: DatasetPointer = pointer;
+
+    return new Response(JSON.stringify(body), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control":
+          "public, max-age=30, stale-while-revalidate=30, must-revalidate",
+        ETag: etag,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching pointer from KV:", error);
+    return Response.json({ error: "Failed to fetch pointer" }, { status: 500 });
+  }
+}
+
+async function respondWithVersionedBlob(
+  env: Env,
+  request: Request,
+  dataset: string,
+  version: string,
+): Promise<Response> {
+  try {
+    const etag = `"${version}"`;
+    if (request.headers.get("If-None-Match") === etag) {
+      return new Response(null, { status: 304, headers: { ETag: etag } });
+    }
+
+    const body = await readDatasetVersion(env.QUEUE_DATA, dataset, version);
+    if (body == null) {
+      return Response.json(
+        { error: "Dataset version not found" },
+        { status: 404 },
+      );
+    }
+
+    return new Response(body, {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        ETag: etag,
+      },
+    });
+  } catch (error) {
+    console.error("Error serving versioned blob:", error);
+    return Response.json({ error: "Failed to serve dataset" }, { status: 500 });
+  }
 }
