@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.1] - 2025-10-31
+
+- fix missing types
+
 ## [0.9.0] - 2025-10-31
 
 - simplify retain logic
