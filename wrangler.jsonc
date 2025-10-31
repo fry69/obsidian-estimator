@@ -15,11 +15,11 @@
   "kv_namespaces": [
     {
       "binding": "QUEUE_DATA",
-      "id": "false",
+      "id": "fa3d3d6e82d24805aaffe44ea5f1619e",
     },
     {
       "binding": "GITHUB_APP_KV",
-      "id": "false",
+      "id": "a372633f000743169659ed9d7c85d5c6",
     },
   ],
   /**
