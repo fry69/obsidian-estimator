@@ -1,4 +1,4 @@
 {
-  "entry": ["worker/index.ts", "src/main.{ts,tsx}"],
+  "entry": ["worker/index.ts", "src/main.{ts,tsx}", "scripts/*.ts"],
   "project": ["**/*.{js,jsx,ts,tsx}"]
 }

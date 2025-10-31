@@ -1,7 +1,11 @@
 import { Octokit } from "@octokit/rest";
 import { RequestError } from "@octokit/request-error";
 import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
-import { GH_HEADERS_BASE, getGitHubAccessToken } from "./oauth";
+import {
+  GH_HEADERS_BASE,
+  getGitHubInstallationToken,
+  invalidateGitHubInstallationToken,
+} from "./githubAuth";
 import {
   type MergedPullRequest,
   type PullRequest,
@@ -83,7 +87,7 @@ interface IngestOptions {
  * The search API caps responses at 1,000 items; this helper automatically
  * traverses the pages so callers receive the combined dataset.
  *
- * @param octokit - Authenticated Octokit instance tied to our OAuth token.
+ * @param octokit - Authenticated Octokit instance tied to our installation token.
  * @param q - The GitHub search query string to execute.
  * @returns All search items returned by the API.
  */
@@ -367,7 +371,7 @@ async function hashString(value: string): Promise<string> {
  * alongside the full details in KV. Rewrites of the larger details record only
  * occur when the content hash changes to minimise storage churn.
  *
- * @param env - Worker bindings including KV namespace and OAuth secrets.
+ * @param env - Worker bindings including KV namespace and GitHub App secrets.
  */
 export async function ingest(
   env: Env,
@@ -379,9 +383,6 @@ export async function ingest(
   let summaryUpdated = false;
   const force = options.force === true;
   const datasetBaseUrl = normalizeBaseUrl(env.PUBLIC_BASE_URL);
-
-  // Get a fresh user token
-  const token = await getGitHubAccessToken(env);
 
   const octokit = new Octokit({
     request: {
@@ -395,12 +396,23 @@ export async function ingest(
   });
 
   octokit.hook.before("request", async (options) => {
+    const token = await getGitHubInstallationToken(env);
     options.headers = {
       ...(options.headers || {}),
       authorization: `Bearer ${token}`,
     };
     // console.debug(`[GitHub] ${options.method} ${options.url} requested`);
     // console.debug(`[GitHub] Headers: ${JSON.stringify(options.headers, null, 2)}`);
+  });
+
+  octokit.hook.error("request", async (error) => {
+    if (
+      error instanceof RequestError &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      invalidateGitHubInstallationToken();
+    }
+    throw error;
   });
 
   // Log rate limit info after each request for debugging

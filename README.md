@@ -36,53 +36,49 @@ key to keep reads fast.
 3.  **Cloudflare KV:**
     - Create a KV namespace for queue data (one-time):
       `wrangler kv namespace create obsidian-queue-data`
-    - Create a KV namespace for storing GitHub OAuth tokens (one-time):
-      `wrangler kv namespace create obsidian-github-oauth`
+    - Create (or reuse) a KV namespace for the encrypted GitHub App key. If
+      you're migrating from the old OAuth flow you can reuse the existing
+      namespace ID; just bind it as `GITHUB_APP_KV` in `wrangler.jsonc`.
+      Example: `wrangler kv namespace create obsidian-github-app-secrets`
     - Update `wrangler.jsonc` with the namespace IDs returned by Wrangler (if
       not done automatically).
-4.  **GitHub App OAuth (avoid using Personal Access Tokens):**
-    - Create a new GitHub App in the
-      [developer settings](https://github.com/settings/apps/new) of your GitHub
-      account or organization.
-    - Cheat Sheet for creating a GitHub App:
-      - Name: **[Any Name]**
-      - Description: [Any Description]
-      - Homepage: **[GitHub URL]**
-      - Callback URL: **[GitHub URL]** _(placeholder; unused)_
-      - **Expire user authorization tokens:** **ON**
-      - **Request user authorization during installation:** **OFF**
-      - **Enable Device Flow:** **ON**
-      - Setup URL: _(blank)_
-      - Redirect on update: **OFF**
-      - Webhook: **OFF** _(no URL/secret)_
-      - Permissions: **none** (repo/org/account all unset)
-      - Events: **none**
-      - Installation: **Any account**
-    - **Generate a Client Secret** for the App and note down the Client ID and
-      Client Secret.
-5.  **Setup credentials and OAuth token:**
-    - Add the GitHub App credentials as Cloudflare secrets (repeat per
-      environment as required):
-      - `wrangler secret put GH_CLIENT_ID`
-      - `wrangler secret put GH_CLIENT_SECRET`
-    - Complete the App’s OAuth flow once (with the account that should back the
-      ingest worker) and capture the returned `refresh_token`. Store it in the
-      `GITHUB_OAUTH` KV namespace under the `GH_REFRESH` key:
-      - `wrangler kv key put --binding GITHUB_OAUTH GH_REFRESH <refresh_token>`
-    - Use the helper script in `vendor/tools/device-flow.sh` to walk through the
-      GitHub device authorization flow and obtain the `refresh_token`. Export
-      your GitHub App credentials, run the script, then follow the prompts:
+4.  **GitHub App configuration (server-to-server flow):**
+    - Create a GitHub App under
+      [developer settings](https://github.com/settings/apps/new) if you do not
+      already have one. This app is only used to mint installation tokens that
+      raise the GitHub REST API rate limits; it never interacts with the
+      Obsidian repositories directly.
+    - Suggested checklist:
+      - Homepage URL: `https://github.com/` (placeholder; required field)
+      - Callback URL: leave blank (no OAuth flow required)
+      - Webhook: off
+      - Permissions: leave everything at **No access** (no scopes are required)
+      - Events: none
+      - Installation target: choose **Any account**. Install it on any account
+        you control; it does **not** need access to `obsidianmd/obsidian-releases`.
+    - After creating the app, download the generated private key (`.pem`) and
+      note both the **App ID** and the **Installation ID** (visible in the
+      installation URL or via `https://api.github.com/app/installations` when
+      authenticated as the app).
+5.  **Configure secrets and encrypted key material:**
+    - Store the numeric GitHub App identifiers as Worker secrets (repeat per
+      environment). You can either set them manually:
+      - `wrangler secret put GH_APP_ID`
+      - `wrangler secret put GH_INSTALLATION_ID` or provide them directly to the
+        helper script in the next step.
+    - Upload the private key to KV using the helper script, which encrypts the
+      PEM locally, stores the random password in the Worker secret
+      `GH_APP_KEY_PASSWORD`, and (optionally) writes the App/installation IDs
+      for you:
 
       ```bash
-      GH_CLIENT_ID="<your_app_client_id>" \
-      GH_CLIENT_SECRET="<your_app_client_secret>" \
-      ./vendor/tools/device-flow.sh
+      npm run upload:github-app-key -- --pem /path/to/github-app-private-key.pem \
+        --app-id 123456 --installation-id 7890123
       ```
 
-      The script prints a `verification_uri` and `user_code`. Open the URL in
-      your browser, paste or type the one-time code, and approve the request.
-      Leave the script running; once GitHub completes the authorization it will
-      display the `refresh_token` you need to store in KV.
+      Add `--env staging` to target the staging environment. The script writes
+      to the `GITHUB_APP_KV` namespace and will overwrite any existing secret of
+      the same key.
 
 6.  **Deploy:**
     - Production: `npm run deploy`
@@ -95,8 +91,9 @@ KV entries:
 
 - a lightweight summary containing wait-time estimates, queue counts, and weekly
   merge statistics (`/api/summary`)
-- the full PR details blob used by the tables (`/api/details`), which is only
-  rewritten when the upstream data actually changes
+- cacheable dataset blobs exposed under `/api/data/<dataset>/current.json`
+  (returns pointers with ETags) and `/data/<dataset>.<version>.json` (the
+  immutable, versioned payload).
 
 - Open queue data is pulled via the repo `issues` endpoint using manual
   pagination. The worker stores page 1’s ETag in the summary record; a `304`
@@ -130,3 +127,14 @@ When developing locally, replace the hostname with the URL printed by
 `{ "force": true }` in a JSON body) to bypass cached ETag/merge tripwires when
 you need a full refresh. The ingestion process can take up to a minute depending
 on queue size.
+
+## Acknowledgments
+
+This project includes code from
+[encrypt-workers-kv](https://github.com/bradyjoslin/encrypt-workers-kv) by Brady
+Joslin [@bradyjoslin](https://github.com/bradyjoslin).
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file
+for details.

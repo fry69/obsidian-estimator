@@ -4,6 +4,8 @@
 
 - simplify retain logic
 - add sleep to allow KV writes to propagate
+- import crypto library
+- repleace OAuth with IAT workflow
 
 ## [0.8.0] - 2025-10-31
 
