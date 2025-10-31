@@ -55,7 +55,8 @@ key to keep reads fast.
       - Permissions: leave everything at **No access** (no scopes are required)
       - Events: none
       - Installation target: choose **Any account**. Install it on any account
-        you control; it does **not** need access to `obsidianmd/obsidian-releases`.
+        you control; it does **not** need access to
+        `obsidianmd/obsidian-releases`.
     - After creating the app, download the generated private key (`.pem`) and
       note both the **App ID** and the **Installation ID** (visible in the
       installation URL or via `https://api.github.com/app/installations` when

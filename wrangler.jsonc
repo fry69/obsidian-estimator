@@ -12,6 +12,16 @@
   "observability": {
     "enabled": true,
   },
+  "kv_namespaces": [
+    {
+      "binding": "QUEUE_DATA",
+      "id": "false",
+    },
+    {
+      "binding": "GITHUB_APP_KV",
+      "id": "false",
+    },
+  ],
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
