@@ -1,11 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.0] - 2025-10-31
 
 - simplify retain logic
 - add sleep to allow KV writes to propagate
 - import crypto library
-- repleace OAuth with IAT workflow
+- replace OAuth with IAT workflow
 
 ## [0.8.0] - 2025-10-31
 
