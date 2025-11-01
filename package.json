@@ -1,7 +1,7 @@
 {
   "name": "obsidian-estimator",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.2",
   "type": "module",
   "scripts": {
     "check": "npm run cf-typegen && npm run format:check && npm run lint && npm run knip && npm run build",

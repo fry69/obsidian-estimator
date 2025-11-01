@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.2] - 2025-11-01
 
 - code cleanup
 - switch to GraphQL for merged PR queries
