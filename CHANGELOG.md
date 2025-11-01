@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 - code cleanup
+- switch to GraphQL for merged PR queries
+- detect "ghost PRs" without commits
+- use exponential backoff for GitHub API requests
 
 ## [0.9.1] - 2025-10-31
 

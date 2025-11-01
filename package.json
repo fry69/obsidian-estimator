@@ -21,7 +21,7 @@
   "dependencies": {
     "@octokit/request-error": "^7.0.1",
     "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.90.5",
+    "@tanstack/react-query": "^5.90.6",
     "@tanstack/react-virtual": "^3.13.12",
     "chart.js": "^4.5.1",
     "react": "^19.1.1",

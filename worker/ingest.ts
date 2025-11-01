@@ -67,6 +67,126 @@ interface GitHubPr {
   } | null;
 }
 
+interface GraphqlLabelNode {
+  name: string;
+}
+
+interface GraphqlMergedPrNode {
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  mergedAt: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  commits: {
+    totalCount: number;
+  } | null;
+  labels: {
+    nodes: GraphqlLabelNode[];
+  };
+}
+
+interface GraphqlMergedPrConnection {
+  issueCount: number;
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
+  };
+  nodes: (GraphqlMergedPrNode | null)[];
+}
+
+interface GraphqlMergedSearchResponse {
+  rateLimit: {
+    cost: number;
+    remaining: number;
+    resetAt: string;
+  };
+  search: GraphqlMergedPrConnection;
+}
+
+interface GraphqlMergedPrResult {
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  mergedAt: string;
+  labels: string[];
+  commitsTotal: number;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+}
+
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRY_ATTEMPTS = 5;
+const BASE_RETRY_DELAY_MS = 500;
+const MAX_RETRY_DELAY_MS = 8000;
+const RETRY_JITTER_RATIO = 0.2;
+
+function computeBackoffDelay(attempt: number): number {
+  const delay = BASE_RETRY_DELAY_MS * 2 ** (attempt - 1);
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+}
+
+function applyJitter(delayMs: number): number {
+  const jitter = delayMs * RETRY_JITTER_RATIO;
+  return delayMs + (Math.random() * jitter - jitter / 2);
+}
+
+async function wait(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof RequestError) {
+    if (error.status === undefined) {
+      return true;
+    }
+    return RETRYABLE_STATUS_CODES.has(error.status);
+  }
+  if (error instanceof Error) {
+    const normalised = error.message.toLowerCase();
+    if (
+      normalised.includes("timeout") ||
+      normalised.includes("temporarily unavailable") ||
+      normalised.includes("network")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function executeWithRetries<T>(
+  description: string,
+  operation: () => Promise<T>,
+  logger: IngestLogger,
+  maxAttempts = MAX_RETRY_ATTEMPTS,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const retryable = isRetryableError(error);
+      if (!retryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const delayMs = applyJitter(computeBackoffDelay(attempt));
+      logger.info(
+        `[Retry] ${description} failed (attempt ${attempt}/${maxAttempts}); retrying in ${Math.round(delayMs)}ms.`,
+      );
+      await wait(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
 interface IngestResult {
   ok: boolean;
   message: string;
@@ -85,50 +205,107 @@ interface IngestOptions {
   force?: boolean;
 }
 
-/**
- * Fetch paginated GitHub search results for the provided query.
- *
- * The search API caps responses at 1,000 items; this helper automatically
- * traverses the pages so callers receive the combined dataset.
- *
- * @param octokit - Authenticated Octokit instance tied to our installation token.
- * @param q - The GitHub search query string to execute.
- * @returns All search items returned by the API.
- */
-const SEARCH_PAGE_SIZE = 100;
+const GRAPHQL_SEARCH_PAGE_SIZE = 100;
 
-async function searchGitHubIssues(
+async function fetchMergedPullRequestsGraphql(
   octokit: Octokit,
-  q: string,
+  sinceDate: string,
   logger: IngestLogger,
-): Promise<GitHubPr[]> {
-  const aggregated: GitHubPr[] = [];
+): Promise<GraphqlMergedPrResult[]> {
+  const searchQuery = `${buildCombinedMergedSearchQuery(sinceDate)} sort:updated-desc`;
+  const aggregated: GraphqlMergedPrResult[] = [];
+  let afterCursor: string | null = null;
   let page = 1;
 
   while (true) {
-    const response = await octokit.request("GET /search/issues", {
-      q,
-      per_page: SEARCH_PAGE_SIZE,
-      page,
-    });
-
-    const { items, total_count } = response.data as {
-      items: GitHubPr[];
-      total_count: number;
-    };
-
-    aggregated.push(...items);
-    logger.debug(
-      `[GitHub] search page ${page} fetched ${items.length} items (total so far ${aggregated.length}/${total_count}).`,
+    const response: GraphqlMergedSearchResponse = await executeWithRetries(
+      `merged history GraphQL page ${page}`,
+      () =>
+        octokit.graphql<GraphqlMergedSearchResponse>(
+          `
+              query FetchMergedPullRequests(
+                $searchQuery: String!
+                $first: Int!
+                $after: String
+        ) {
+          rateLimit {
+            cost
+            remaining
+            resetAt
+          }
+          search(query: $searchQuery, type: ISSUE, first: $first, after: $after) {
+            issueCount
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              ... on PullRequest {
+                number
+                title
+                url
+                createdAt
+                mergedAt
+                additions
+                deletions
+                changedFiles
+                commits {
+                  totalCount
+                }
+                labels(first: 10) {
+                  nodes {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+          {
+            searchQuery,
+            first: GRAPHQL_SEARCH_PAGE_SIZE,
+            after: afterCursor ?? undefined,
+          },
+        ),
+      logger,
     );
 
-    if (aggregated.length >= Math.min(total_count, 1000)) {
-      break;
-    }
-    if (items.length < SEARCH_PAGE_SIZE) {
+    const nodes = response.search.nodes.filter(
+      (node): node is GraphqlMergedPrNode => node !== null,
+    );
+
+    const pageResults = nodes.map<GraphqlMergedPrResult>((node) => ({
+      number: node.number,
+      title: node.title,
+      url: node.url,
+      createdAt: node.createdAt,
+      mergedAt: node.mergedAt,
+      labels: node.labels.nodes.map((label: GraphqlLabelNode) => label.name),
+      commitsTotal: node.commits?.totalCount ?? 0,
+      additions: node.additions,
+      deletions: node.deletions,
+      changedFiles: node.changedFiles,
+    }));
+
+    aggregated.push(...pageResults);
+
+    const totalMatched = Math.min(response.search.issueCount, 1000);
+    logger.debug(
+      `[GitHub] merged GraphQL page ${page} fetched ${pageResults.length} items (total so far ${aggregated.length}/${totalMatched}). Rate limit remaining ${response.rateLimit.remaining}.`,
+    );
+
+    if (
+      !response.search.pageInfo.hasNextPage ||
+      aggregated.length >= totalMatched
+    ) {
       break;
     }
 
+    afterCursor = response.search.pageInfo.endCursor;
+    if (!afterCursor) {
+      break;
+    }
     page += 1;
   }
 
@@ -150,12 +327,17 @@ async function hasNewMergedPullRequests(
   logger: IngestLogger,
 ): Promise<boolean> {
   const query = buildMergedTripwireQuery(since);
-  const response = await octokit.request("GET /search/issues", {
-    q: query,
-    per_page: 1,
-    sort: "updated",
-    order: "desc",
-  });
+  const response = await executeWithRetries(
+    "merged tripwire search",
+    () =>
+      octokit.request("GET /search/issues", {
+        q: query,
+        per_page: 1,
+        sort: "updated",
+        order: "desc",
+      }),
+    logger,
+  );
 
   const { total_count } = response.data as { total_count: number };
   const changed = total_count > 0;
@@ -182,15 +364,20 @@ async function fetchReadyForReviewPullRequests(
 
   let page1Response;
   try {
-    page1Response = await octokit.request(
-      "GET /repos/{owner}/{repo}/issues",
-      ifNoneMatch
-        ? {
-            ...baseRequest,
-            page: 1,
-            headers: { "If-None-Match": ifNoneMatch },
-          }
-        : { ...baseRequest, page: 1 },
+    page1Response = await executeWithRetries(
+      "ready-for-review page 1",
+      () =>
+        octokit.request(
+          "GET /repos/{owner}/{repo}/issues",
+          ifNoneMatch
+            ? {
+                ...baseRequest,
+                page: 1,
+                headers: { "If-None-Match": ifNoneMatch },
+              }
+            : { ...baseRequest, page: 1 },
+        ),
+      logger,
     );
   } catch (error) {
     if (error instanceof RequestError && error.status === 304) {
@@ -217,10 +404,15 @@ async function fetchReadyForReviewPullRequests(
   let previousPageSize = collected.length;
 
   while (previousPageSize === ISSUES_PAGE_SIZE) {
-    const response = await octokit.request("GET /repos/{owner}/{repo}/issues", {
-      ...baseRequest,
-      page,
-    });
+    const response = await executeWithRetries(
+      `ready-for-review page ${page}`,
+      () =>
+        octokit.request("GET /repos/{owner}/{repo}/issues", {
+          ...baseRequest,
+          page,
+        }),
+      logger,
+    );
 
     const pageItems = (response.data as GitHubPr[]).filter(
       (item) => item.pull_request,
@@ -246,11 +438,15 @@ async function fetchReadyForReviewPullRequests(
  * @param pr - The GitHub search result to inspect.
  * @returns The queue type label if present, otherwise `"unknown"`.
  */
-function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
-  const typeLabel = pr.labels.find((label) =>
-    REVIEW_TYPES.includes(label.name as ReviewAssetType),
+function resolveTypeFromLabels(labels: string[]): ReviewAssetTypeWithFallback {
+  const typeLabel = labels.find((label) =>
+    REVIEW_TYPES.includes(label as ReviewAssetType),
   );
-  return (typeLabel?.name as ReviewAssetTypeWithFallback) ?? "unknown";
+  return (typeLabel as ReviewAssetTypeWithFallback) ?? "unknown";
+}
+
+function resolvePrType(pr: GitHubPr): ReviewAssetTypeWithFallback {
+  return resolveTypeFromLabels(pr.labels.map((label) => label.name));
 }
 
 /**
@@ -270,8 +466,8 @@ function buildMergedTripwireQuery(since: string): string {
  * @param type - The queue label (plugin or theme).
  * @returns A ready-to-run GitHub search string.
  */
-function buildMergedSearchQuery(since: string, type: ReviewAssetType): string {
-  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:${type}`;
+function buildCombinedMergedSearchQuery(since: string): string {
+  return `is:pr repo:${GITHUB_OWNER}/${GITHUB_REPO} is:merged merged:>${since} label:plugin,theme`;
 }
 
 /**
@@ -297,15 +493,19 @@ function buildOpenPrPayload(prs: GitHubPr[]): PullRequest[] {
 }
 
 /**
- * Transform merged pull requests into queue history rows.
+ * Transform merged pull requests returned by the GraphQL search into queue history rows.
  *
- * @param prs - Raw GitHub search results representing merged PRs.
+ * @param prs - GraphQL search results representing merged PRs.
+ * @param logger - Ingest logger for diagnostic output.
  * @returns Sorted queue history entries ordered by merge date (oldest first).
  */
-function buildMergedPrPayload(prs: GitHubPr[]): MergedPullRequest[] {
+function buildMergedPrPayload(
+  prs: GraphqlMergedPrResult[],
+  logger: IngestLogger,
+): MergedPullRequest[] {
   const seen = new Set<number>();
+  const ghostNumbers: number[] = [];
   const mapped = prs
-    .filter((pr) => pr.pull_request && pr.pull_request.merged_at)
     .filter((pr) => {
       if (seen.has(pr.number)) {
         return false;
@@ -313,24 +513,44 @@ function buildMergedPrPayload(prs: GitHubPr[]): MergedPullRequest[] {
       seen.add(pr.number);
       return true;
     })
+    .filter((pr) => {
+      if (pr.commitsTotal === 0 || pr.changedFiles === 0) {
+        ghostNumbers.push(pr.number);
+        return false;
+      }
+      return true;
+    })
     .map<MergedPullRequest>((pr) => {
-      const createdAt = new Date(pr.created_at);
-      const mergedAtIso = pr.pull_request!.merged_at!;
+      const createdAt = new Date(pr.createdAt);
+      const mergedAtIso = pr.mergedAt;
       const mergedAt = new Date(mergedAtIso);
       const daysToMerge = Math.round(
         (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
       );
 
+      const type = resolveTypeFromLabels(pr.labels);
+
       return {
         id: pr.number,
         title: pr.title,
-        url: pr.html_url,
-        type: resolvePrType(pr),
-        createdAt: pr.created_at,
+        url: pr.url,
+        type,
+        createdAt: pr.createdAt,
         mergedAt: mergedAtIso,
         daysToMerge,
       } satisfies MergedPullRequest;
     });
+
+  if (ghostNumbers.length > 0) {
+    logger.info(
+      `[Ingest] Ignored ${ghostNumbers.length} merged PR(s) without commits or file changes.`,
+    );
+    logger.debug(
+      `[Ingest] Ghost merges: ${ghostNumbers
+        .map((num) => `#${num}`)
+        .join(", ")}`,
+    );
+  }
 
   return mapped.sort((a, b) => {
     return new Date(a.mergedAt).getTime() - new Date(b.mergedAt).getTime();
@@ -501,22 +721,12 @@ export async function ingest(
         mergedSince.getMonth() - MERGED_HISTORY_LOOKBACK_MONTHS,
       );
       const mergedQueryDate = mergedSince.toISOString().slice(0, 10);
-      const mergedPluginQuery = buildMergedSearchQuery(
+      const mergedCombined = await fetchMergedPullRequestsGraphql(
+        octokit,
         mergedQueryDate,
-        "plugin",
-      );
-      const mergedThemeQuery = buildMergedSearchQuery(mergedQueryDate, "theme");
-      const mergedPlugins = await searchGitHubIssues(
-        octokit,
-        mergedPluginQuery,
         logger,
       );
-      const mergedThemes = await searchGitHubIssues(
-        octokit,
-        mergedThemeQuery,
-        logger,
-      );
-      mergedPrs = buildMergedPrPayload([...mergedPlugins, ...mergedThemes]);
+      mergedPrs = buildMergedPrPayload(mergedCombined, logger);
     } else {
       logger.info("[Ingest] Merged history unchanged; reusing cached data.");
       const cached = await readDatasetJSON<MergedPullRequest[]>(
