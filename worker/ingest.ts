@@ -1,23 +1,27 @@
 import { Octokit } from "@octokit/rest";
 import { RequestError } from "@octokit/request-error";
-import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics";
+import { buildWeeklyMergedSummary, computeWaitEstimate } from "./metrics.ts";
 import {
   GH_HEADERS_BASE,
   getGitHubInstallationToken,
   invalidateGitHubInstallationToken,
-} from "./githubAuth";
+} from "./githubAuth.ts";
 import {
   type MergedPullRequest,
   type PullRequest,
   type QueueSummary,
-} from "../shared/queueSchema";
-import { readQueueSummary, writeQueueSummary } from "./queueStore";
+} from "../shared/queueSchema.ts";
+import { readQueueSummary, writeQueueSummary } from "./queueStore.ts";
 import {
   readDatasetJSON,
   writeDatasetJSON,
   type DatasetPointer,
-} from "./datasetCache";
-import { type IngestLogEntry, createIngestLogger, describeError } from "./log";
+} from "./datasetCache.ts";
+import {
+  type IngestLogEntry,
+  createIngestLogger,
+  describeError,
+} from "./log.ts";
 
 const REVIEW_TYPES = ["plugin", "theme"] as const;
 const READY_FOR_REVIEW_LABEL = "Ready for review";
@@ -401,8 +405,6 @@ export async function ingest(
       ...(options.headers || {}),
       authorization: `Bearer ${token}`,
     };
-    // console.debug(`[GitHub] ${options.method} ${options.url} requested`);
-    // console.debug(`[GitHub] Headers: ${JSON.stringify(options.headers, null, 2)}`);
   });
 
   octokit.hook.error("request", async (error) => {

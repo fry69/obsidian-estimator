@@ -5,9 +5,9 @@ import type {
   MergedPullRequest,
   PullRequest,
   SubmissionFilter,
-} from "../types";
-import { usePersistentState } from "../hooks/usePersistentState";
-import { useRelativeTime } from "../hooks/useRelativeTime";
+} from "../types.ts";
+import { usePersistentState } from "../hooks/usePersistentState.ts";
+import { useRelativeTime } from "../hooks/useRelativeTime.ts";
 
 type SortColumn = "id" | "type" | "title" | "date" | "days";
 type SortDirection = "asc" | "desc";

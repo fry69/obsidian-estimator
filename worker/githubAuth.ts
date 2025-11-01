@@ -1,5 +1,5 @@
-import { getDecryptedKV } from "../shared/crypto";
-import { GITHUB_APP_PRIVATE_KEY_KV_KEY } from "../shared/githubApp";
+import { getDecryptedKV } from "../shared/crypto/index.ts";
+import { GITHUB_APP_PRIVATE_KEY_KV_KEY } from "../shared/githubApp.ts";
 
 const TOKEN_REFRESH_BUFFER_SECONDS = 60; // Refresh one minute before expiry
 const JWT_MAX_LIFETIME_SECONDS = 9 * 60; // 9 minutes to stay below GitHub's 10 minute cap

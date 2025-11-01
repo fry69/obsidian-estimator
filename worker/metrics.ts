@@ -1,5 +1,5 @@
-import type { MergedPullRequest, WaitEstimate } from "../shared/queueSchema";
-import type { QueueSummary } from "../shared/queueSchema";
+import type { MergedPullRequest, WaitEstimate } from "../shared/queueSchema.ts";
+import type { QueueSummary } from "../shared/queueSchema.ts";
 
 type WeeklyMergedSummary = QueueSummary["weeklyMerged"];
 

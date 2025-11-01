@@ -31,4 +31,10 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["worker/**/*.ts"],
+    rules: {
+      // "no-console": "error",
+    },
+  },
 ]);

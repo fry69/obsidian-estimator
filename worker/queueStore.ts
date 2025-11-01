@@ -1,4 +1,7 @@
-import { queueSummarySchema, type QueueSummary } from "../shared/queueSchema";
+import {
+  queueSummarySchema,
+  type QueueSummary,
+} from "../shared/queueSchema.ts";
 
 const QUEUE_SUMMARY_KEY = "queue-summary";
 

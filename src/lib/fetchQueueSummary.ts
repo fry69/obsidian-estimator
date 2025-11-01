@@ -1,4 +1,4 @@
-import { queueSummarySchema, type QueueSummary } from "../types";
+import { queueSummarySchema, type QueueSummary } from "../types.ts";
 
 const SUMMARY_URL = "/api/summary";
 

@@ -1,10 +1,10 @@
-import { ingest } from "./ingest";
+import { ingest } from "./ingest.ts";
 import {
   readDatasetPointer,
   readDatasetVersion,
   type DatasetPointer,
-} from "./datasetCache";
-import { readQueueSummary } from "./queueStore";
+} from "./datasetCache.ts";
+import { readQueueSummary } from "./queueStore.ts";
 
 const summaryRoute = new URLPattern({ pathname: "/api/summary" });
 const triggerRoute = new URLPattern({ pathname: "/api/trigger" });

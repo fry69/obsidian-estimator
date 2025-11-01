@@ -2,7 +2,7 @@ import {
   datasetPointerSchema,
   datasetPointerWithoutMetadataSchema,
   type DatasetPointer,
-} from "../shared/queueSchema";
+} from "../shared/queueSchema.ts";
 
 export type { DatasetPointer } from "../shared/queueSchema";
 

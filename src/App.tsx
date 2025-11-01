@@ -9,17 +9,20 @@ import {
   type QueueSummary,
   type SubmissionFilter,
   type WaitEstimate,
+  isSubmissionFilter,
 } from "./types";
-import { isSubmissionFilter } from "./types";
-import KpiCard from "./components/KpiCard";
-import TimelineChart from "./components/TimelineChart";
-import PullRequestTable from "./components/PullRequestTable";
-import ThemeToggle from "./components/ThemeToggle";
-import { useTheme } from "./hooks/useTheme";
-import { usePersistentState } from "./hooks/usePersistentState";
-import { fetchQueueSummary } from "./lib/fetchQueueSummary";
-import { fetchDataset } from "./lib/datasetClient";
-import { formatAbsoluteDate, useRelativeTime } from "./hooks/useRelativeTime";
+import KpiCard from "./components/KpiCard.tsx";
+import TimelineChart from "./components/TimelineChart.tsx";
+import PullRequestTable from "./components/PullRequestTable.tsx";
+import ThemeToggle from "./components/ThemeToggle.tsx";
+import { useTheme } from "./hooks/useTheme.ts";
+import { usePersistentState } from "./hooks/usePersistentState.ts";
+import { fetchQueueSummary } from "./lib/fetchQueueSummary.ts";
+import { fetchDataset } from "./lib/datasetClient.ts";
+import {
+  formatAbsoluteDate,
+  useRelativeTime,
+} from "./hooks/useRelativeTime.ts";
 
 type TableVariant = "queue" | "merged";
 

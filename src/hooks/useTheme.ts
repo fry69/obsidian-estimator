@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from "react";
-import { usePersistentState } from "./usePersistentState";
+import { usePersistentState } from "./usePersistentState.ts";
 
 export type Theme = "light" | "dark";
 

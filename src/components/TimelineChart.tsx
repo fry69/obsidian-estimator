@@ -10,8 +10,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import type { Theme } from "../hooks/useTheme";
-import type { SubmissionFilter } from "../types";
+import type { Theme } from "../hooks/useTheme.ts";
+import type { SubmissionFilter } from "../types.ts";
 
 ChartJS.register(
   CategoryScale,

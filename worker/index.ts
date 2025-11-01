@@ -1,6 +1,6 @@
-import { ingest } from "./ingest";
-import { handleRequest } from "./api";
-import { pruneDatasetVersions } from "./datasetCache";
+import { ingest } from "./ingest.ts";
+import { handleRequest } from "./api.ts";
+import { pruneDatasetVersions } from "./datasetCache.ts";
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));

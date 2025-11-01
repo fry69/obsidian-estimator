@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { DatasetPointerSummary } from "../types";
+import type { DatasetPointerSummary } from "../types.ts";
 
 export async function fetchDataset<T>(
   pointer: DatasetPointerSummary,

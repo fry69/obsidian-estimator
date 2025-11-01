@@ -2,7 +2,7 @@ export {
   queueSummarySchema,
   openQueueDatasetSchema,
   mergedQueueDatasetSchema,
-} from "../shared/queueSchema";
+} from "../shared/queueSchema.ts";
 
 export type {
   PullRequest,
@@ -10,7 +10,7 @@ export type {
   WaitEstimate,
   DatasetPointer as DatasetPointerSummary,
   QueueSummary,
-} from "../shared/queueSchema";
+} from "../shared/queueSchema.ts";
 
 const submissionFilters = ["all", "plugin", "theme"] as const;
 
